@@ -75,7 +75,7 @@ struct LoginView: View {
                 
                 // Update global state
                 DispatchQueue.main.async {
-                    authManager.login()
+                    authManager.login(uid: token.local_id)
                 }
             } catch {
                 isLoading = false

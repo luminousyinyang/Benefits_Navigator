@@ -1,11 +1,12 @@
 import os
 import firebase_admin
-from firebase_admin import credentials, auth
-import requests
+from firebase_admin import credentials, auth, firestore
 from dotenv import load_dotenv
-from fastapi import HTTPException, status
+import requests
 
 load_dotenv()
+
+# ... (imports)
 
 # Initialize Firebase Admin
 try:
@@ -17,20 +18,36 @@ try:
         raise FileNotFoundError(f"Firebase credentials file not found at: {cred_path}")
 
     cred = credentials.Certificate(cred_path)
-    firebase_admin.initialize_app(cred)
+    # Check if app is already initialized to avoid errors during reload
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app(cred)
+        
+    # Initialize Firestore
+    db = firestore.client()
 except Exception as e:
     # Fail fast: The app cannot work without Firebase Admin.
     raise RuntimeError(f"Failed to initialize Firebase Admin: {e}")
 
 FIREBASE_WEB_API_KEY = os.getenv("FIREBASE_WEB_API_KEY")
 
-def create_user(email: str, password: str):
-    """Creates a new user in Firebase Authentication."""
+def create_user(email: str, password: str, first_name: str, last_name: str):
+    """Creates a new user in Firebase Authentication and stores profile in Firestore."""
     try:
+        # 1. Create Auth User
         user = auth.create_user(
             email=email,
             password=password
         )
+        
+        # 2. Create User Profile in Firestore
+        user_data = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "created_at": firestore.SERVER_TIMESTAMP
+        }
+        db.collection("users").document(user.uid).set(user_data)
+        
         return user
     except auth.EmailAlreadyExistsError:
         raise HTTPException(
@@ -38,10 +55,24 @@ def create_user(email: str, password: str):
             detail="Email already registered"
         )
     except Exception as e:
+        # If Firestore fails, we might want to delete the Auth user, 
+        # but for simplicity in this hackathon context, we'll just fail.
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+def get_user_profile(uid: str):
+    """Fetches user profile from Firestore."""
+    try:
+        doc = db.collection("users").document(uid).get()
+        if doc.exists:
+            return doc.to_dict()
+        else:
+             raise HTTPException(status_code=404, detail="User profile not found")
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=str(e))
+
 
 def verify_password(email: str, password: str):
     """

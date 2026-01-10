@@ -14,7 +14,7 @@ def signup(user: UserSignup):
     Registers a new user in Firebase.
     """
     try:
-        created_user = auth.create_user(user.email, user.password)
+        created_user = auth.create_user(user.email, user.password, user.first_name, user.last_name)
         return {"message": f"User {created_user.uid} created successfully", "uid": created_user.uid}
     except HTTPException as e:
         raise e
@@ -33,6 +33,19 @@ def login(user: UserLogin):
             local_id=auth_response['localId'],
             email=auth_response['email']
         )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/me", response_model=dict)
+def read_users_me(uid: str):
+    """
+    Fetch current user profile.
+    """
+    try:
+        profile = auth.get_user_profile(uid)
+        return profile
     except HTTPException as e:
         raise e
     except Exception as e:

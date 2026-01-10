@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct SignUpView: View {
-    @State private var name = ""
+    @State private var firstName = ""
+    @State private var lastName = ""
     @State private var email = ""
     @State private var password = ""
     @State private var isLoading = false
@@ -29,7 +30,10 @@ struct SignUpView: View {
             }
 
             Group {
-                TextField("", text: $name, prompt: Text("Name").foregroundColor(.white.opacity(0.4)))
+                HStack {
+                    TextField("", text: $firstName, prompt: Text("First API").foregroundColor(.white.opacity(0.4)))
+                    TextField("", text: $lastName, prompt: Text("Last API").foregroundColor(.white.opacity(0.4)))
+                }
                 TextField("", text: $email, prompt: Text("Email").foregroundColor(.white.opacity(0.4)))
                     .keyboardType(.emailAddress)
                     .autocapitalization(.none)
@@ -71,13 +75,13 @@ struct SignUpView: View {
         
         Task {
             do {
-                let uid = try await APIService.shared.signup(email: email, password: password)
+                let uid = try await APIService.shared.signup(email: email, password: password, firstName: firstName, lastName: lastName)
                 print("Signed up successfully: \(uid)")
                 isLoading = false
                 
                 // Update global state to log in
                 DispatchQueue.main.async {
-                    authManager.login()
+                    authManager.login(uid: uid)
                 }
             } catch {
                 isLoading = false
