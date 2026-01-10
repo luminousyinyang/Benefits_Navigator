@@ -17,9 +17,10 @@ class AuthManager: ObservableObject {
         // Create async task to check onboarding status
         Task {
             do {
-                let profile = try await APIService.shared.fetchUser(uid: uid)
+                let profile = try await APIService.shared.fetchUser()
                 DispatchQueue.main.async {
                     self.isOnboarded = profile.onboarded ?? false
+                    self.userProfile = profile // Store the profile locally
                 }
             } catch {
                 print("Failed to fetch profile during login: \(error)")
@@ -32,6 +33,7 @@ class AuthManager: ObservableObject {
         isLoggedIn = false
         isOnboarded = false
         currentUserUID = nil
+        APIService.shared.clearSession()
     }
     
     func completeOnboarding() {

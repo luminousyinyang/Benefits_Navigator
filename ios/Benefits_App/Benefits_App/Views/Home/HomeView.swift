@@ -18,7 +18,7 @@ struct HomeView: View {
         
         Task {
             do {
-                let profile = try await APIService.shared.fetchUser(uid: uid)
+                let profile = try await APIService.shared.fetchUser()
                 DispatchQueue.main.async {
                     self.firstName = profile.first_name
                 }

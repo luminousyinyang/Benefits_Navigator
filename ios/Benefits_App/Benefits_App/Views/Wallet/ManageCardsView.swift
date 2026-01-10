@@ -150,7 +150,7 @@ struct ManageCardsView: View {
                     }
                     
                     HStack(spacing: 30) {
-                        BottomAction(icon: "center.focus.strong", label: "Scan")
+                        BottomAction(icon: "viewfinder", label: "Scan")
                         BottomAction(icon: "magnifyingglass", label: "Search")
                     }
                 }
@@ -175,10 +175,12 @@ struct ManageCardsView: View {
     }
     
     func fetchCards() {
-        guard let uid = authManager.currentUserUID else { return }
+        // guard let uid = authManager.currentUserUID else { return }
+        if !authManager.isLoggedIn { return }
+
         Task {
             do {
-                let cards = try await APIService.shared.fetchUserCards(uid: uid)
+                let cards = try await APIService.shared.fetchUserCards()
                 DispatchQueue.main.async {
                     self.userCards = cards
                 }
@@ -189,10 +191,10 @@ struct ManageCardsView: View {
     }
     
     func deleteCard(_ card: UserCard) {
-        guard let uid = authManager.currentUserUID, let cardId = card.card_id else { return }
+        guard let cardId = card.card_id else { return }
         Task {
             do {
-                try await APIService.shared.removeUserCard(uid: uid, cardId: cardId)
+                try await APIService.shared.removeUserCard(cardId: cardId)
                 fetchCards()
             } catch {
                 print("Error deleting card: \(error)")
@@ -266,11 +268,11 @@ struct AddCardSheet: View {
     }
     
     func addCard(_ card: Card) {
-        guard let uid = authManager.currentUserUID else { return }
+        // guard let uid = authManager.currentUserUID else { return }
         let userCard = UserCard(card: card)
         Task {
             do {
-                try await APIService.shared.addUserCard(uid: uid, card: userCard)
+                try await APIService.shared.addUserCard(card: userCard)
                 DispatchQueue.main.async {
                     onAdd()
                     isPresented = false

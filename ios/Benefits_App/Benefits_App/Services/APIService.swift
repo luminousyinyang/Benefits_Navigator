@@ -6,10 +6,16 @@ class APIService {
     // Configuration
     // Use "http://127.0.0.1:8000" for iOS Simulator
     // Use your machine's IP address (e.g. "http://192.168.1.5:8000") for physical device
-    private let baseURL = "http://10.126.172.26:8000"
+    private let baseURL = "http://192.168.68.64:8000"
 
     private init() {}
 
+    private var authToken: String?
+    
+    func clearSession() {
+        self.authToken = nil
+    }
+    
     // MARK: - Auth
 
     func signup(email: String, password: String, firstName: String, lastName: String) async throws -> String {
@@ -76,6 +82,7 @@ class APIService {
 
         if httpResponse.statusCode == 200 {
             let token = try JSONDecoder().decode(AuthToken.self, from: data)
+            self.authToken = token.id_token // Store token
             return token
         } else {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -88,23 +95,30 @@ class APIService {
     
     // MARK: - User
     
-
-    func fetchUser(uid: String) async throws -> UserProfile {
-        guard let url = URL(string: "\(baseURL)/me?uid=\(uid)") else {
+    func fetchUser() async throws -> UserProfile {
+        guard let url = URL(string: "\(baseURL)/me") else {
             throw URLError(.badURL)
         }
 
-        let (data, _) = try await URLSession.shared.data(from: url)
+        var request = URLRequest(url: url)
+        if let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, _) = try await URLSession.shared.data(for: request)
         return try JSONDecoder().decode(UserProfile.self, from: data)
     }
 
-    func completeOnboarding(uid: String) async throws {
-        guard let url = URL(string: "\(baseURL)/me/onboarding?uid=\(uid)") else {
+    func completeOnboarding() async throws {
+        guard let url = URL(string: "\(baseURL)/me/onboarding") else {
             throw URLError(.badURL)
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        if let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         
         let (_, response) = try await URLSession.shared.data(for: request)
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
@@ -121,7 +135,12 @@ class APIService {
             throw URLError(.badURL)
         }
         
-        let (data, response) = try await URLSession.shared.data(from: url)
+        var request = URLRequest(url: url)
+        if let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
         
         if let httpResponse = response as? HTTPURLResponse {
             if httpResponse.statusCode == 404 {
@@ -143,23 +162,31 @@ class APIService {
         return try JSONDecoder().decode(Card.self, from: data)
     }
     
-    func fetchUserCards(uid: String) async throws -> [UserCard] {
-        guard let url = URL(string: "\(baseURL)/me/cards?uid=\(uid)") else {
+    func fetchUserCards() async throws -> [UserCard] {
+        guard let url = URL(string: "\(baseURL)/me/cards") else {
             throw URLError(.badURL)
         }
         
-        let (data, _) = try await URLSession.shared.data(from: url)
+        var request = URLRequest(url: url)
+        if let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        let (data, _) = try await URLSession.shared.data(for: request)
         return try JSONDecoder().decode([UserCard].self, from: data)
     }
     
-    func addUserCard(uid: String, card: UserCard) async throws {
-        guard let url = URL(string: "\(baseURL)/me/cards?uid=\(uid)") else {
+    func addUserCard(card: UserCard) async throws {
+        guard let url = URL(string: "\(baseURL)/me/cards") else {
             throw URLError(.badURL)
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         
         request.httpBody = try JSONEncoder().encode(card)
         
@@ -169,13 +196,16 @@ class APIService {
         }
     }
     
-    func removeUserCard(uid: String, cardId: String) async throws {
-        guard let url = URL(string: "\(baseURL)/me/cards/\(cardId)?uid=\(uid)") else {
+    func removeUserCard(cardId: String) async throws {
+        guard let url = URL(string: "\(baseURL)/me/cards/\(cardId)") else {
             throw URLError(.badURL)
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
+        if let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         
         let (_, response) = try await URLSession.shared.data(for: request)
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {

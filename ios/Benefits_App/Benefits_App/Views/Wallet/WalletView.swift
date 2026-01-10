@@ -70,10 +70,13 @@ struct WalletView: View {
     }
     
     func fetchCards() {
-        guard let uid = authManager.currentUserUID else { return }
+        // guard let uid = authManager.currentUserUID else { return } // No longer needed for param
+        // Check if logged in via authManager if needed, but APIService handles token
+        if !authManager.isLoggedIn { return }
+        
         Task {
             do {
-                let cards = try await APIService.shared.fetchUserCards(uid: uid)
+                let cards = try await APIService.shared.fetchUserCards()
                 DispatchQueue.main.async {
                     self.userCards = cards
                     if self.selectedCardId == nil, let first = cards.first {

@@ -261,7 +261,7 @@ struct OnboardingCardsView: View {
         
         Task {
             do {
-                try await APIService.shared.addUserCard(uid: uid, card: userCard)
+                try await APIService.shared.addUserCard(card: userCard)
                 DispatchQueue.main.async {
                     self.userCards.append(userCard)
                     self.foundCard = nil // Clear result after adding
@@ -277,7 +277,7 @@ struct OnboardingCardsView: View {
         guard let uid = authManager.currentUserUID else { return }
         Task {
             do {
-                try await APIService.shared.completeOnboarding(uid: uid)
+                try await APIService.shared.completeOnboarding()
                 DispatchQueue.main.async {
                     authManager.completeOnboarding()
                 }

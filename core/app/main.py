@@ -18,6 +18,25 @@ else:
     print("Warning: GEMINI_API_KEY not set. AI features will be disabled.")
     model = None
 
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    """
+    Verifies the Firebase ID token and returns the decoded token (user info).
+    """
+    try:
+        # Verify the ID token while checking if the token is revoked.
+        decoded_token = auth.auth.verify_id_token(token, check_revoked=True)
+        return decoded_token
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid authentication credentials: {e}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
 @app.get("/health")
 def read_health():
     return {"status": "ok"}
@@ -53,11 +72,12 @@ def login(user: UserLogin):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/me", response_model=dict)
-def read_users_me(uid: str):
+def read_users_me(current_user: dict = Depends(get_current_user)):
     """
-    Fetch current user profile.
+    Fetch current user profile using the Bearer token.
     """
     try:
+        uid = current_user['uid']
         profile = auth.get_user_profile(uid)
         return profile
     except HTTPException as e:
@@ -66,16 +86,17 @@ def read_users_me(uid: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/me/onboarding")
-def complete_onboarding(uid: str):
+def complete_onboarding(current_user: dict = Depends(get_current_user)):
     """Sets user's onboarded status to True."""
     try:
+        uid = current_user['uid']
         auth.set_onboarded(uid, True)
         return {"status": "success"}
     except HTTPException as e:
         raise e
 
 @app.get("/cards/search")
-def search_card(query: str):
+def search_card(query: str, current_user: dict = Depends(get_current_user)):
     """
     Searches for a card. 
     1. Checks global DB.
@@ -91,9 +112,12 @@ def search_card(query: str):
         if not model:
              raise HTTPException(status_code=503, detail="AI Service Unavailable")
 
-        # 2. Ask Gemini
+        # 2. Ask Gemini (Prompt Hardened)
+        # We sanitize the query to avoid injection
+        safe_query = query.replace('"', '\\"').replace('\n', ' ')
+        
         prompt = f"""
-        I need you to identify a credit card based on this search query: "{query}".
+        I need you to identify a credit card based on this search query: "{safe_query}".
         
         If the query matches a known real-world credit card (e.g. "Chase Sapphire", "Amex Gold", "Capital One Venture"), return a JSON object with its details.
         
@@ -137,26 +161,29 @@ def search_card(query: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/me/cards")
-def read_user_cards(uid: str):
-    """Fetch user's wallet."""
+def read_user_cards(current_user: dict = Depends(get_current_user)):
+    """Fetch user's wallet securely."""
     try:
+        uid = current_user['uid']
         return auth.get_user_cards(uid)
     except HTTPException as e:
         raise e
 
 @app.post("/me/cards")
-def add_card_to_wallet(uid: str, card: UserCard):
-    """Adds a card to the user's wallet."""
+def add_card_to_wallet(card: UserCard, current_user: dict = Depends(get_current_user)):
+    """Adds a card to the user's wallet securely."""
     try:
+        uid = current_user['uid']
         auth.add_user_card(uid, card.dict())
         return {"status": "success"}
     except HTTPException as e:
         raise e
 
 @app.delete("/me/cards/{card_id}")
-def remove_card_from_wallet(uid: str, card_id: str):
-    """Removes a card from the user's wallet."""
+def remove_card_from_wallet(card_id: str, current_user: dict = Depends(get_current_user)):
+    """Removes a card from the user's wallet securely."""
     try:
+        uid = current_user['uid']
         auth.remove_user_card(uid, card_id)
         return {"status": "success"}
     except HTTPException as e:

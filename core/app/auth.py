@@ -159,40 +159,34 @@ def get_global_card(query: str):
 def add_user_card(uid: str, card_data: dict):
     """
     Links a card to the user's wallet.
-    We only store the reference (card_id) in the user's subcollection.
+    WE COPY the full data (Snapshot) so the wallet loads instantly.
     """
     card_id = card_data.get('id') or card_data.get('name')
     if not card_id:
          raise ValueError("Card must have an ID or Name")
 
-    # 1. Ensure it exists in global (it should, but just in case)
-    # If we are adding it, we might want to refresh the global record or ensure it's there?
-    # For now, we assume user flow is Search -> (Save Global) -> Add to User.
-    # So we just save the reference.
+    # Add timestamp
+    card_data['added_at'] = firestore.SERVER_TIMESTAMP
+    # Ensure card_id is part of the data
+    card_data['card_id'] = card_id
     
-    user_card_ref = {'card_reference': card_id, 'added_at': firestore.SERVER_TIMESTAMP}
-    db.collection('users').document(uid).collection('cards').document(card_id).set(user_card_ref)
+    # Save to user's subcollection
+    db.collection('users').document(uid).collection('cards').document(card_id).set(card_data)
     
 def get_user_cards(uid: str):
     """
-    Fetches user's cards by looking up references.
+    Fetches user's cards directly from their subcollection.
+    This is O(1) read (one query) instead of O(N) reads.
     """
-    user_cards_refs = db.collection('users').document(uid).collection('cards').stream()
+    docs = db.collection('users').document(uid).collection('cards').stream()
     
     cards = []
-    for user_card_doc in user_cards_refs:
-        ref_data = user_card_doc.to_dict()
-        card_id = ref_data.get('card_reference')
-        
-        if card_id:
-            # Fetch actual data from global collection
-            # Note: In production, use getAll() for batch fetching for performance
-            global_card_doc = db.collection('cards').document(card_id).get()
-            if global_card_doc.exists:
-                data = global_card_doc.to_dict()
-                # Inject the ID into the dict so frontend has it
-                data['card_id'] = global_card_doc.id 
-                cards.append(data)
+    for doc in docs:
+        data = doc.to_dict()
+        # Ensure ID is present (it should be in data, but good to be safe)
+        if 'card_id' not in data:
+            data['card_id'] = doc.id
+        cards.append(data)
                 
     return cards
 
