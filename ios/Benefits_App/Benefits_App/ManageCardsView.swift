@@ -8,6 +8,13 @@ struct ManageCardsView: View {
     let secondaryBlue = Color(red: 59/255, green: 130/255, blue: 246/255)
     let textSecondary = Color(red: 157/255, green: 168/255, blue: 185/255)
     
+    @EnvironmentObject var authManager: AuthManager
+    @Environment(\.presentationMode) var presentationMode
+    
+    @State private var userCards: [UserCard] = []
+    @State private var showingAddCardSheet = false
+    @State private var selectedCard: UserCard? = nil
+    
     var body: some View {
         ZStack {
             backgroundDark.ignoresSafeArea()
@@ -15,7 +22,7 @@ struct ManageCardsView: View {
             VStack(spacing: 0) {
                 // MARK: - Navigation Bar
                 HStack {
-                    Button(action: {}) {
+                    Button(action: { presentationMode.wrappedValue.dismiss() }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(.white)
@@ -29,7 +36,7 @@ struct ManageCardsView: View {
                     
                     Spacer()
                     
-                    Button("Done") { }
+                    Button("Done") { presentationMode.wrappedValue.dismiss() }
                         .font(.system(size: 17, weight: .bold))
                         .foregroundColor(primaryBlue)
                 }
@@ -56,7 +63,7 @@ struct ManageCardsView: View {
                                         .font(.system(size: 15, weight: .bold))
                                         .foregroundColor(.white)
                                     
-                                    Text("Your wallet is synced. 3 cards are currently optimized for maximum rewards based on your location and spending habits.")
+                                    Text("Your wallet is synced. \(userCards.count) cards are currently optimized for maximum rewards based on your location and spending habits.")
                                         .font(.system(size: 13))
                                         .foregroundColor(textSecondary)
                                         .lineSpacing(2)
@@ -81,32 +88,30 @@ struct ManageCardsView: View {
                                 .padding(.leading, 4)
                             
                             VStack(spacing: 12) {
-                                CardRow(
-                                    name: "Amex Gold",
-                                    benefit: "Top Pick: Dining & Groceries",
-                                    lastFour: "2005",
-                                    icon: "star.fill",
-                                    iconColor: primaryBlue,
-                                    gradient: [Color(red: 0.9, green: 0.75, blue: 0.54), Color(red: 0.67, green: 0.52, blue: 0.15)]
-                                )
+                                ForEach(userCards) { card in
+                                    CardRow(
+                                        name: card.name,
+                                        benefit: card.brand, // Fallback if no benefits
+                                        lastFour: "••••",
+                                        icon: "creditcard.fill",
+                                        iconColor: primaryBlue,
+                                        gradient: [Color.blue, Color.purple],
+                                        onDelete: {
+                                            deleteCard(card)
+                                        },
+                                        benefits: card.benefits
+                                    )
+                                    .contentShape(Rectangle()) // Make full row tappable
+                                    .onTapGesture {
+                                        selectedCard = card
+                                    }
+                                }
                                 
-                                CardRow(
-                                    name: "Chase Freedom Flex",
-                                    benefit: "5% Rotating • Q3 Active",
-                                    lastFour: "8842",
-                                    icon: "chart.line.uptrend.xyaxis",
-                                    iconColor: .green,
-                                    gradient: [Color.blue, Color(red: 0.05, green: 0.28, blue: 0.63)]
-                                )
-                                
-                                CardRow(
-                                    name: "Citi Custom Cash",
-                                    benefit: "5% on Top Category",
-                                    lastFour: "4519",
-                                    icon: "square.grid.2x2.fill",
-                                    iconColor: textSecondary,
-                                    gradient: [Color(red: 0, green: 0.75, blue: 0.65), Color(red: 0, green: 0.41, blue: 0.36)]
-                                )
+                                if userCards.isEmpty {
+                                    Text("No cards linked yet.")
+                                        .foregroundColor(textSecondary)
+                                        .padding()
+                                }
                             }
                         }
                         
@@ -130,7 +135,7 @@ struct ManageCardsView: View {
                 
                 // MARK: - Bottom Bar
                 VStack(spacing: 12) {
-                    Button(action: {}) {
+                    Button(action: { showingAddCardSheet = true }) {
                         HStack(spacing: 8) {
                             Image(systemName: "plus.circle.fill")
                                 .font(.system(size: 20))
@@ -155,6 +160,125 @@ struct ManageCardsView: View {
                 .background(backgroundDark.opacity(0.95).blur(radius: 0.5))
             }
         }
+        .onAppear {
+            fetchCards()
+        }
+        .sheet(isPresented: $showingAddCardSheet) {
+            AddCardSheet(isPresented: $showingAddCardSheet, onAdd: { 
+                fetchCards() // Refresh after adding
+            })
+            .environmentObject(authManager)
+        }
+        .sheet(item: $selectedCard) { card in
+            CardDetailView(card: card)
+        }
+    }
+    
+    func fetchCards() {
+        guard let uid = authManager.currentUserUID else { return }
+        Task {
+            do {
+                let cards = try await APIService.shared.fetchUserCards(uid: uid)
+                DispatchQueue.main.async {
+                    self.userCards = cards
+                }
+            } catch {
+                print("Error fetching cards: \(error)")
+            }
+        }
+    }
+    
+    func deleteCard(_ card: UserCard) {
+        guard let uid = authManager.currentUserUID, let cardId = card.card_id else { return }
+        Task {
+            do {
+                try await APIService.shared.removeUserCard(uid: uid, cardId: cardId)
+                fetchCards()
+            } catch {
+                print("Error deleting card: \(error)")
+            }
+        }
+    }
+}
+
+struct AddCardSheet: View {
+    @Binding var isPresented: Bool
+    var onAdd: () -> Void
+    @EnvironmentObject var authManager: AuthManager
+    
+    @State private var searchQuery = ""
+    @State private var geminiThinking = false
+    @State private var foundCard: Card?
+    
+    var body: some View {
+        ZStack {
+            Color(red: 16/255, green: 24/255, blue: 34/255).ignoresSafeArea()
+            VStack {
+                Text("Add Card")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                
+                TextField("Search card...", text: $searchQuery)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding()
+                    .onSubmit { performSearch() }
+                
+                if geminiThinking {
+                    ProgressView().tint(.white)
+                }
+                
+                if let card = foundCard {
+                     Button(action: {
+                         addCard(card)
+                     }) {
+                         VStack {
+                             Text(card.name).bold()
+                             Text(card.brand)
+                         }
+                         .padding()
+                         .background(Color.blue)
+                         .cornerRadius(10)
+                         .foregroundColor(.white)
+                     }
+                }
+                
+                Spacer()
+            }
+        }
+    }
+    
+    func performSearch() {
+        geminiThinking = true
+        foundCard = nil
+        Task {
+            do {
+                let card = try await APIService.shared.searchCard(query: searchQuery)
+                DispatchQueue.main.async {
+                    self.foundCard = card
+                    self.geminiThinking = false
+                }
+            } catch {
+                print(error)
+                geminiThinking = false
+            }
+        }
+    }
+    
+    func addCard(_ card: Card) {
+        guard let uid = authManager.currentUserUID else { return }
+        let userCard = UserCard(card: card)
+        Task {
+            do {
+                try await APIService.shared.addUserCard(uid: uid, card: userCard)
+                DispatchQueue.main.async {
+                    onAdd()
+                    isPresented = false
+                }
+            } catch {
+                print(error)
+            }
+        }
     }
 }
 
@@ -166,6 +290,10 @@ struct CardRow: View {
     let icon: String
     let iconColor: Color
     let gradient: [Color]
+    var onDelete: (() -> Void)? = nil
+    
+    // New: Accept full benefits dictionary
+    var benefits: [String: String]? = nil
     
     var body: some View {
         HStack(spacing: 16) {
@@ -186,22 +314,45 @@ struct CardRow: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(.white)
                 
-                HStack(spacing: 4) {
-                    Image(systemName: icon)
-                        .font(.system(size: 10))
-                        .foregroundColor(iconColor)
-                    Text(benefit)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Color(red: 157/255, green: 168/255, blue: 185/255))
+                // Smart Benefits Display
+                if let benefits = benefits, !benefits.isEmpty {
+                     // Take the first 1-2 benefits to show
+                     let benefitText = benefits.values.prefix(1).joined(separator: ", ")
+                     HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 10))
+                            .foregroundColor(.yellow)
+                        Text(benefitText)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color(red: 157/255, green: 168/255, blue: 185/255))
+                            .lineLimit(1)
+                    }
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: icon)
+                            .font(.system(size: 10))
+                            .foregroundColor(iconColor)
+                        Text(benefit)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color(red: 157/255, green: 168/255, blue: 185/255))
+                    }
                 }
             }
             
             Spacer()
             
-            Button(action: {}) {
-                Image(systemName: "trash")
-                    .font(.system(size: 18))
-                    .foregroundColor(Color.gray.opacity(0.6))
+            if let onDelete = onDelete {
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 18))
+                        .foregroundColor(Color.gray.opacity(0.6))
+                }
+            } else {
+                Button(action: {}) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 18))
+                        .foregroundColor(Color.gray.opacity(0.6))
+                }
             }
         }
         .padding(.horizontal, 12)

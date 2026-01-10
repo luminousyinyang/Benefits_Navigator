@@ -88,22 +88,99 @@ class APIService {
     
     // MARK: - User
     
+
     func fetchUser(uid: String) async throws -> UserProfile {
         guard let url = URL(string: "\(baseURL)/me?uid=\(uid)") else {
-             throw URLError(.badURL)
+            throw URLError(.badURL)
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return try JSONDecoder().decode(UserProfile.self, from: data)
+    }
+
+    func completeOnboarding(uid: String) async throws {
+        guard let url = URL(string: "\(baseURL)/me/onboarding?uid=\(uid)") else {
+            throw URLError(.badURL)
         }
         
         var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        request.httpMethod = "POST"
         
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-             throw URLError(.badServerResponse)
+        let (_, response) = try await URLSession.shared.data(for: request)
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            throw URLError(.badServerResponse)
+        }
+    }
+    
+    // MARK: - Cards
+    
+    func searchCard(query: String) async throws -> Card {
+        // URL encode the query
+        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "\(baseURL)/cards/search?query=\(encodedQuery)") else {
+            throw URLError(.badURL)
         }
         
-        let profile = try JSONDecoder().decode(UserProfile.self, from: data)
-        return profile
+        let (data, response) = try await URLSession.shared.data(from: url)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            if httpResponse.statusCode == 404 {
+                throw NSError(domain: "APIService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Card not found. Please try a different name."])
+            }
+            if httpResponse.statusCode == 503 {
+                throw NSError(domain: "APIService", code: 503, userInfo: [NSLocalizedDescriptionKey: "AI Service Unavailable. Please check your Backend GEMINI_API_KEY."])
+            }
+            if httpResponse.statusCode != 200 {
+                 // Try to decode error message
+                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                    let detail = json["detail"] as? String {
+                     throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: detail])
+                 }
+                 throw URLError(.badServerResponse)
+            }
+        }
+        
+        return try JSONDecoder().decode(Card.self, from: data)
+    }
+    
+    func fetchUserCards(uid: String) async throws -> [UserCard] {
+        guard let url = URL(string: "\(baseURL)/me/cards?uid=\(uid)") else {
+            throw URLError(.badURL)
+        }
+        
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return try JSONDecoder().decode([UserCard].self, from: data)
+    }
+    
+    func addUserCard(uid: String, card: UserCard) async throws {
+        guard let url = URL(string: "\(baseURL)/me/cards?uid=\(uid)") else {
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        request.httpBody = try JSONEncoder().encode(card)
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+             throw URLError(.badServerResponse)
+        }
+    }
+    
+    func removeUserCard(uid: String, cardId: String) async throws {
+        guard let url = URL(string: "\(baseURL)/me/cards/\(cardId)?uid=\(uid)") else {
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            throw URLError(.badServerResponse)
+        }
     }
 }
 
@@ -116,7 +193,30 @@ struct AuthToken: Codable {
 }
 
 struct UserProfile: Codable {
+    let email: String
     let first_name: String
     let last_name: String
-    let email: String
+    let onboarded: Bool?
+}
+
+struct Card: Codable, Identifiable {
+    var id: String { name }
+    let name: String
+    let brand: String
+    let benefits: [String: String]
+}
+
+struct UserCard: Codable, Identifiable {
+    var id: String { card_id ?? UUID().uuidString }
+    let card_id: String?
+    let name: String
+    let brand: String
+    let benefits: [String: String]?
+    
+    init(card: Card) {
+        self.card_id = UUID().uuidString
+        self.name = card.name
+        self.brand = card.brand
+        self.benefits = card.benefits
+    }
 }

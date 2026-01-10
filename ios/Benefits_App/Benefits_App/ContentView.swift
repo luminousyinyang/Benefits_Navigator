@@ -6,7 +6,11 @@ struct ContentView: View {
     var body: some View {
         Group {
             if authManager.isLoggedIn {
-                HomeView()
+                if !authManager.isOnboarded {
+                     OnboardingCardsView()
+                } else {
+                    HomeView()
+                }
             } else {
                 NavigationView {
                     AuthView()

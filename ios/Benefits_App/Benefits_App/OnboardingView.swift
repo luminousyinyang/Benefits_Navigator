@@ -8,6 +8,18 @@ struct OnboardingCardsView: View {
     let secondaryBlue = Color(red: 59/255, green: 130/255, blue: 246/255)
     let textSecondary = Color(red: 157/255, green: 168/255, blue: 185/255)
 
+    @EnvironmentObject var authManager: AuthManager
+    
+    @State private var searchQuery = ""
+    @State private var isSearching = false
+    @State private var foundCard: Card?
+    @State private var userCards: [UserCard] = []
+    @State private var errorMessage: String?
+    @State private var showingError = false
+    
+    // For "Gemini Finding..." animation
+    @State private var geminiThinking = false
+
     var body: some View {
         ZStack {
             backgroundDark.ignoresSafeArea()
@@ -45,44 +57,99 @@ struct OnboardingCardsView: View {
                         }
                         .padding(.top, 30)
                         
-                        // Scan Button
-                        Button(action: {}) {
-                            HStack(spacing: 12) {
-                                Image(systemName: "camera.fill")
-                                    .font(.system(size: 20))
-                                Text("Scan Physical Card")
-                                    .font(.system(size: 18, weight: .bold))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
-                            .background(primaryBlue)
-                            .foregroundColor(.white)
-                            .cornerRadius(16)
-                            .shadow(color: primaryBlue.opacity(0.3), radius: 10, y: 5)
-                        }
-                        .padding(.horizontal, 4)
-                        
-                        // Divider
-                        HStack {
-                            Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
-                            Text("OR")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(textSecondary)
-                                .padding(.horizontal, 8)
-                            Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
-                        }
-                        
-                        // Search Bar (Using your cardBackground)
+                        // Search Bar
                         HStack {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(textSecondary)
-                            TextField("", text: .constant(""), prompt: Text("Search for card (e.g. Chase Sapphire)").foregroundColor(textSecondary.opacity(0.7)))
+                            TextField("", text: $searchQuery, prompt: Text("Search for card (e.g. Chase Sapphire)").foregroundColor(textSecondary.opacity(0.7)))
                                 .foregroundColor(.white)
+                                .onSubmit {
+                                    performSearch()
+                                }
+                            
+                            if !searchQuery.isEmpty {
+                                Button(action: { performSearch() }) {
+                                    Image(systemName: "arrow.right.circle.fill")
+                                        .foregroundColor(primaryBlue)
+                                        .font(.system(size: 24))
+                                }
+                            }
                         }
                         .padding()
                         .background(cardBackground)
                         .cornerRadius(12)
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                        
+                        if geminiThinking {
+                            HStack(spacing: 8) {
+                                ProgressView().tint(primaryBlue)
+                                Text("Gemini is analyzing...")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(primaryBlue)
+                            }
+                        }
+                        
+                        // Search Result (Found Card)
+                        if let card = foundCard {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("FOUND CARD")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(primaryBlue)
+                                
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(card.name)
+                                            .font(.system(size: 16, weight: .bold))
+                                            .foregroundColor(.white)
+                                        Text(card.brand)
+                                            .font(.system(size: 14))
+                                            .foregroundColor(textSecondary)
+                                    }
+                                    Spacer()
+                                    Button(action: { addCardToWallet(card: card) }) {
+                                        Text("Add")
+                                            .font(.system(size: 14, weight: .bold)) // Fixed font weight
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                            .background(primaryBlue)
+                                            .foregroundColor(.white)
+                                            .cornerRadius(8)
+                                    }
+                                }
+                                .padding()
+                                .background(cardBackground)
+                                .cornerRadius(12)
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(primaryBlue.opacity(0.5), lineWidth: 1))
+                            }
+                        }
+                        
+                        // Added Cards List
+                        if !userCards.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("YOUR WALLET")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(textSecondary)
+                                
+                                ForEach(userCards) { userCard in
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(userCard.name)
+                                                .font(.system(size: 15, weight: .semibold))
+                                                .foregroundColor(.white)
+                                            Text(userCard.brand)
+                                                .font(.system(size: 13))
+                                                .foregroundColor(textSecondary)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.green)
+                                    }
+                                    .padding()
+                                    .background(cardBackground)
+                                    .cornerRadius(12)
+                                }
+                            }
+                        }
                         
                         // Tutorial Section
                         VStack(alignment: .leading, spacing: 16) {
@@ -137,7 +204,7 @@ struct OnboardingCardsView: View {
             VStack {
                 Spacer()
                 VStack(spacing: 16) {
-                    Button(action: {}) {
+                    Button(action: { completeOnboarding() }) {
                         Text("Next Step")
                             .font(.system(size: 18, weight: .bold))
                             .frame(maxWidth: .infinity)
@@ -147,7 +214,7 @@ struct OnboardingCardsView: View {
                             .cornerRadius(14)
                     }
                     
-                    Button(action: {}) {
+                    Button(action: { completeOnboarding() }) {
                         Text("Skip for now")
                             .font(.system(size: 15, weight: .medium))
                             .foregroundColor(textSecondary)
@@ -159,6 +226,69 @@ struct OnboardingCardsView: View {
             }
         }
         .navigationBarHidden(true)
+        .alert(isPresented: $showingError) {
+            Alert(title: Text("Error"), message: Text(errorMessage ?? "Unknown error"), dismissButton: .default(Text("OK")))
+        }
+    }
+    
+    func performSearch() {
+        guard !searchQuery.isEmpty else { return }
+        
+        geminiThinking = true
+        foundCard = nil
+        errorMessage = nil
+        
+        Task {
+            do {
+                let card = try await APIService.shared.searchCard(query: searchQuery)
+                DispatchQueue.main.async {
+                    self.foundCard = card
+                    self.geminiThinking = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.geminiThinking = false
+                    self.errorMessage = error.localizedDescription
+                    self.showingError = true
+                }
+            }
+        }
+    }
+    
+    func addCardToWallet(card: Card) {
+        guard let uid = authManager.currentUserUID else { return }
+        let userCard = UserCard(card: card)
+        
+        Task {
+            do {
+                try await APIService.shared.addUserCard(uid: uid, card: userCard)
+                DispatchQueue.main.async {
+                    self.userCards.append(userCard)
+                    self.foundCard = nil // Clear result after adding
+                    self.searchQuery = ""
+                }
+            } catch {
+                print("Error adding card: \(error)")
+            }
+        }
+    }
+    
+    func completeOnboarding() {
+        guard let uid = authManager.currentUserUID else { return }
+        Task {
+            do {
+                try await APIService.shared.completeOnboarding(uid: uid)
+                DispatchQueue.main.async {
+                    authManager.completeOnboarding()
+                }
+            } catch {
+                print("Error completing onboarding: \(error)")
+                // Proceed anyway locally so user isn't stuck
+                DispatchQueue.main.async {
+                    authManager.completeOnboarding()
+                }
+            }
+        }
     }
 }
 

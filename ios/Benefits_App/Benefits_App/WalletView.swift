@@ -7,6 +7,10 @@ struct WalletView: View {
     let primaryBlue = Color(red: 19/255, green: 109/255, blue: 236/255)
     let secondaryBlue = Color(red: 59/255, green: 130/255, blue: 246/255)
     let textSecondary = Color(red: 157/255, green: 168/255, blue: 185/255)
+    @EnvironmentObject var authManager: AuthManager
+    
+    @State private var userCards: [UserCard] = []
+    @State private var selectedCardId: String? = nil
     
     var body: some View {
         ZStack {
@@ -60,9 +64,27 @@ struct WalletView: View {
                 }
             }
         }
+        .onAppear {
+            fetchCards()
+        }
     }
     
-    // MARK: - Subviews
+    func fetchCards() {
+        guard let uid = authManager.currentUserUID else { return }
+        Task {
+            do {
+                let cards = try await APIService.shared.fetchUserCards(uid: uid)
+                DispatchQueue.main.async {
+                    self.userCards = cards
+                    if self.selectedCardId == nil, let first = cards.first {
+                        self.selectedCardId = first.card_id ?? first.id
+                    }
+                }
+            } catch {
+                print("Error fetching cards: \(error)")
+            }
+        }
+    }
     
     private var headerView: some View {
         HStack {
@@ -101,54 +123,94 @@ struct WalletView: View {
     }
     
     private var cardCarousel: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 15) {
-                // Main Chase Card
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(LinearGradient(colors: [primaryBlue, secondaryBlue], startPoint: .topLeading, endPoint: .bottomTrailing))
+        TabView(selection: $selectedCardId) {
+            if userCards.isEmpty {
+                 // Empty state
+                 RoundedRectangle(cornerRadius: 20)
+                    .fill(cardBackground)
                     .frame(width: 320, height: 200)
-                    .overlay(
-                        VStack(alignment: .leading) {
-                            HStack {
-                                Text("CHASE SAPPHIRE")
-                                    .font(.caption)
-                                    .fontWeight(.bold)
-                                    .tracking(2)
-                                Spacer()
-                                Image(systemName: "wave.3.right")
-                            }
-                            Spacer()
-                            Image(systemName: "cpu.fill")
-                                .font(.title)
-                                .rotationEffect(.degrees(90))
-                            Spacer()
-                            HStack(alignment: .bottom) {
-                                VStack(alignment: .leading) {
-                                    Text("**** **** **** 4242")
-                                        .font(.system(.body, design: .monospaced))
-                                    Text("ALEXANDER DOE")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
+                    .overlay(Text("No cards found. Add one in 'My Wallet'.").foregroundColor(textSecondary))
+                    .tag(Optional<String>.none) // Handle nil tag for empty
+            } else {
+                ForEach(userCards) { card in
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Card Visual
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(LinearGradient(colors: [primaryBlue, secondaryBlue], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                
+                            VStack(alignment: .leading) {
+                                HStack {
+                                    Text(card.name.uppercased())
+                                        .font(.system(size: 12, weight: .bold))
+                                        .tracking(0.5)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.75)
+                                        .truncationMode(.tail)
+                                        .frame(maxWidth: .infinity, alignment: .leading) // Utilize available space
+                                        
+                                    Image(systemName: "wave.3.right")
+                                        .font(.system(size: 14))
+                                        .layoutPriority(1) // Keep icon visible
                                 }
+                                
                                 Spacer()
-                                Text("VISA")
-                                    .font(.title3)
-                                    .italic()
-                                    .fontWeight(.black)
+                                Image(systemName: "cpu.fill")
+                                    .font(.title)
+                                    .rotationEffect(.degrees(90))
+                                Spacer()
+                                HStack(alignment: .bottom) {
+                                    VStack(alignment: .leading) {
+                                        Text("**** **** **** ****")
+                                            .font(.system(.body, design: .monospaced))
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                        Text(authManager.userProfile?.first_name.uppercased() ?? "USER")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                    }
+                                    Spacer()
+                                    Text(card.brand.uppercased())
+                                        .font(.title3)
+                                        .italic()
+                                        .fontWeight(.black)
+                                }
                             }
+                            .padding(25)
+                            .foregroundColor(.white)
                         }
-                        .padding(25)
-                        .foregroundColor(.white)
-                    )
-                
-                // Secondary Gold Card
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.orange.opacity(0.8))
-                    .frame(width: 320, height: 200)
-                    .opacity(0.4)
+                        .frame(width: 320, height: 200) // Constraint is on the container now
+                        
+                        // Scrolling Benefits (Chips)
+                        if let benefits = card.benefits, !benefits.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(benefits.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "sparkles")
+                                                .font(.system(size: 8))
+                                                .foregroundColor(.yellow)
+                                            Text(value)
+                                                .font(.system(size: 10, weight: .medium))
+                                                .foregroundColor(Color(red: 157/255, green: 168/255, blue: 185/255))
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.white.opacity(0.1))
+                                        .cornerRadius(8)
+                                    }
+                                }
+                            }
+                            .frame(width: 320) // Match card width
+                        }
+                    }
+                    .tag(Optional(card.card_id ?? card.id)) // Tag for selection, use card_id or id
+                }
             }
-            .padding(.horizontal)
         }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .frame(height: 280) // Constrain height for TabView
     }
     
     private var tabSection: some View {
@@ -314,9 +376,19 @@ struct WalletView: View {
                 .foregroundColor(.white)
             
             VStack(spacing: 12) {
-                perkRow(icon: "fork.knife", title: "3x Points on Dining", sub: "Worldwide", color: .blue)
-                perkRow(icon: "airplane", title: "5x Points on Travel", sub: "Booked through Chase", color: .purple)
-                perkRow(icon: "dollarsign.circle", title: "No Foreign Transaction Fees", sub: nil, color: .green)
+                if let selectedId = selectedCardId,
+                   let card = userCards.first(where: { ($0.card_id ?? $0.id) == selectedId }),
+                   let benefits = card.benefits, !benefits.isEmpty {
+                    
+                    ForEach(benefits.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
+                        perkRow(icon: "star.fill", title: value, sub: key, color: .blue)
+                    }
+                    
+                } else {
+                    Text("Select a card to view perks")
+                        .foregroundColor(textSecondary)
+                        .italic()
+                }
             }
         }
     }
