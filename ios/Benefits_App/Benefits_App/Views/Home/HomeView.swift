@@ -9,24 +9,15 @@ struct HomeView: View {
     
     @State private var searchText = ""
     @State private var prioritizeWarranty = false
-    @State private var firstName = ""
     
     @EnvironmentObject var authManager: AuthManager
 
-    func fetchUserData() {
-        guard let uid = authManager.currentUserUID else { return }
-        
-        Task {
-            do {
-                let profile = try await APIService.shared.fetchUser()
-                DispatchQueue.main.async {
-                    self.firstName = profile.first_name
-                }
-            } catch {
-                print("Error fetching user profile: \(error)")
-            }
-        }
+    // Computed property for display
+    var firstName: String {
+        authManager.userProfile?.first_name ?? ""
     }
+
+
 
     var body: some View {
         NavigationStack {
@@ -75,9 +66,6 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 20)
-                    .onAppear {
-                        fetchUserData()
-                    }
                     
                     ScrollView {
                         VStack(alignment: .leading, spacing: 0) {

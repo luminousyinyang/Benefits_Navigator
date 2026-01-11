@@ -6,25 +6,87 @@ class AuthManager: ObservableObject {
     @Published var isOnboarded = false
     @Published var currentUserUID: String?
     @Published var userProfile: UserProfile?
+    @Published var userCards: [UserCard] = []
     
-    // In a real app, check Keychain/UserDefaults on init
-    init() {}
+    // Keys for persistence
+    private let kAuthToken = "auth_token"
+    private let kUserUID = "user_uid"
+    private let kIsOnboarded = "is_onboarded"
+    private let kCachedProfile = "cached_profile"
+    private let kCachedCards = "cached_cards"
     
-    func login(uid: String) {
+    init() {
+        // Restore session
+        if let token = UserDefaults.standard.string(forKey: kAuthToken),
+           let uid = UserDefaults.standard.string(forKey: kUserUID) {
+            self.isLoggedIn = true
+            self.currentUserUID = uid
+            // Restore onboarded state
+            self.isOnboarded = UserDefaults.standard.bool(forKey: kIsOnboarded)
+            
+            // Restore Profile
+            if let data = UserDefaults.standard.data(forKey: kCachedProfile),
+               let profile = try? JSONDecoder().decode(UserProfile.self, from: data) {
+                self.userProfile = profile
+            }
+            
+            // Restore Cards
+            if let data = UserDefaults.standard.data(forKey: kCachedCards),
+               let cards = try? JSONDecoder().decode([UserCard].self, from: data) {
+                print("Loaded \(cards.count) cards from cache")
+                self.userCards = cards
+            }
+            
+            APIService.shared.setToken(token)
+            
+            // Refresh data in background
+            Task {
+                await refreshData()
+            }
+        }
+    }
+    
+    func login(uid: String, token: String) {
         // Save state
         isLoggedIn = true
         currentUserUID = uid
-        // Create async task to check onboarding status
+        
+        // Persist
+        UserDefaults.standard.set(token, forKey: kAuthToken)
+        UserDefaults.standard.set(uid, forKey: kUserUID)
+        
         Task {
-            do {
-                let profile = try await APIService.shared.fetchUser()
-                DispatchQueue.main.async {
-                    self.isOnboarded = profile.onboarded ?? false
-                    self.userProfile = profile // Store the profile locally
+            await refreshData()
+        }
+    }
+    
+    func refreshData() async {
+        do {
+            // 1. Fetch Profile
+            let profile = try await APIService.shared.fetchUser()
+            
+            // 2. Fetch Cards
+            let cards = try await APIService.shared.fetchUserCards()
+            
+            DispatchQueue.main.async {
+                // Update State
+                self.isOnboarded = profile.onboarded ?? false
+                self.userProfile = profile 
+                self.userCards = cards
+                
+                // Persist State
+                UserDefaults.standard.set(self.isOnboarded, forKey: self.kIsOnboarded)
+                
+                if let encodedProfile = try? JSONEncoder().encode(profile) {
+                    UserDefaults.standard.set(encodedProfile, forKey: self.kCachedProfile)
                 }
-            } catch {
-                print("Failed to fetch profile during login: \(error)")
+                
+                if let encodedCards = try? JSONEncoder().encode(cards) {
+                    UserDefaults.standard.set(encodedCards, forKey: self.kCachedCards)
+                }
             }
+        } catch {
+            print("Failed to refresh data: \(error)")
         }
     }
     
@@ -33,10 +95,21 @@ class AuthManager: ObservableObject {
         isLoggedIn = false
         isOnboarded = false
         currentUserUID = nil
+        userProfile = nil
+        userCards = []
+        
+        // Clear persistence
+        UserDefaults.standard.removeObject(forKey: kAuthToken)
+        UserDefaults.standard.removeObject(forKey: kUserUID)
+        UserDefaults.standard.removeObject(forKey: kIsOnboarded)
+        UserDefaults.standard.removeObject(forKey: kCachedProfile)
+        UserDefaults.standard.removeObject(forKey: kCachedCards)
+        
         APIService.shared.clearSession()
     }
     
     func completeOnboarding() {
         isOnboarded = true
+        UserDefaults.standard.set(true, forKey: kIsOnboarded)
     }
 }

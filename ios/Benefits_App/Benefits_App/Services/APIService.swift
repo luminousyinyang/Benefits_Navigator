@@ -6,7 +6,7 @@ class APIService {
     // Configuration
     // Use "http://127.0.0.1:8000" for iOS Simulator
     // Use your machine's IP address (e.g. "http://192.168.1.5:8000") for physical device
-    private let baseURL = "http://192.168.68.64:8000"
+    private let baseURL = "http://10.126.172.26:8000"
 
     private init() {}
 
@@ -14,6 +14,10 @@ class APIService {
     
     func clearSession() {
         self.authToken = nil
+    }
+    
+    func setToken(_ token: String) {
+        self.authToken = token
     }
     
     // MARK: - Auth
@@ -101,6 +105,7 @@ class APIService {
         }
 
         var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         if let token = authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
@@ -168,6 +173,7 @@ class APIService {
         }
         
         var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         if let token = authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }

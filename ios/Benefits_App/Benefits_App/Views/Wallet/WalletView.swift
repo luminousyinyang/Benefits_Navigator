@@ -9,7 +9,6 @@ struct WalletView: View {
     let textSecondary = Color(red: 157/255, green: 168/255, blue: 185/255)
     @EnvironmentObject var authManager: AuthManager
     
-    @State private var userCards: [UserCard] = []
     @State private var selectedCardId: String? = nil
     
     var body: some View {
@@ -75,16 +74,12 @@ struct WalletView: View {
         if !authManager.isLoggedIn { return }
         
         Task {
-            do {
-                let cards = try await APIService.shared.fetchUserCards()
-                DispatchQueue.main.async {
-                    self.userCards = cards
-                    if self.selectedCardId == nil, let first = cards.first {
-                        self.selectedCardId = first.card_id ?? first.id
-                    }
+            await authManager.refreshData()
+            
+            DispatchQueue.main.async {
+                if self.selectedCardId == nil, let first = authManager.userCards.first {
+                    self.selectedCardId = first.card_id ?? first.id
                 }
-            } catch {
-                print("Error fetching cards: \(error)")
             }
         }
     }
@@ -127,7 +122,7 @@ struct WalletView: View {
     
     private var cardCarousel: some View {
         TabView(selection: $selectedCardId) {
-            if userCards.isEmpty {
+            if authManager.userCards.isEmpty {
                  // Empty state
                  RoundedRectangle(cornerRadius: 20)
                     .fill(cardBackground)
@@ -135,7 +130,7 @@ struct WalletView: View {
                     .overlay(Text("No cards found. Add one in 'My Wallet'.").foregroundColor(textSecondary))
                     .tag(Optional<String>.none) // Handle nil tag for empty
             } else {
-                ForEach(userCards) { card in
+                ForEach(authManager.userCards) { card in
                     VStack(alignment: .leading, spacing: 12) {
                         // Card Visual
                         ZStack {
@@ -380,7 +375,7 @@ struct WalletView: View {
             
             VStack(spacing: 12) {
                 if let selectedId = selectedCardId,
-                   let card = userCards.first(where: { ($0.card_id ?? $0.id) == selectedId }),
+                   let card = authManager.userCards.first(where: { ($0.card_id ?? $0.id) == selectedId }),
                    let benefits = card.benefits, !benefits.isEmpty {
                     
                     ForEach(benefits.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in

@@ -11,7 +11,6 @@ struct ManageCardsView: View {
     @EnvironmentObject var authManager: AuthManager
     @Environment(\.presentationMode) var presentationMode
     
-    @State private var userCards: [UserCard] = []
     @State private var showingAddCardSheet = false
     @State private var selectedCard: UserCard? = nil
     
@@ -21,27 +20,13 @@ struct ManageCardsView: View {
             
             VStack(spacing: 0) {
                 // MARK: - Navigation Bar
-                HStack {
-                    Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-                    
-                    Spacer()
-                    
+                // Custom header removed as per user request to use system navigation or simpler UI.
+                VStack(spacing: 8) {
                     Text("My Wallet")
                         .font(.system(size: 17, weight: .bold))
                         .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    Button("Done") { presentationMode.wrappedValue.dismiss() }
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(primaryBlue)
+                        .padding(.top, 12)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 12)
                 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
@@ -63,7 +48,7 @@ struct ManageCardsView: View {
                                         .font(.system(size: 15, weight: .bold))
                                         .foregroundColor(.white)
                                     
-                                    Text("Your wallet is synced. \(userCards.count) cards are currently optimized for maximum rewards based on your location and spending habits.")
+                                    Text("Your wallet is synced. \(authManager.userCards.count) cards are currently optimized for maximum rewards based on your location and spending habits.")
                                         .font(.system(size: 13))
                                         .foregroundColor(textSecondary)
                                         .lineSpacing(2)
@@ -88,7 +73,7 @@ struct ManageCardsView: View {
                                 .padding(.leading, 4)
                             
                             VStack(spacing: 12) {
-                                ForEach(userCards) { card in
+                                ForEach(authManager.userCards) { card in
                                     CardRow(
                                         name: card.name,
                                         benefit: card.brand, // Fallback if no benefits
@@ -107,7 +92,7 @@ struct ManageCardsView: View {
                                     }
                                 }
                                 
-                                if userCards.isEmpty {
+                                if authManager.userCards.isEmpty {
                                     Text("No cards linked yet.")
                                         .foregroundColor(textSecondary)
                                         .padding()
@@ -175,18 +160,8 @@ struct ManageCardsView: View {
     }
     
     func fetchCards() {
-        // guard let uid = authManager.currentUserUID else { return }
-        if !authManager.isLoggedIn { return }
-
         Task {
-            do {
-                let cards = try await APIService.shared.fetchUserCards()
-                DispatchQueue.main.async {
-                    self.userCards = cards
-                }
-            } catch {
-                print("Error fetching cards: \(error)")
-            }
+            await authManager.refreshData()
         }
     }
     

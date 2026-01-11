@@ -31,8 +31,8 @@ struct SignUpView: View {
 
             Group {
                 HStack {
-                    TextField("", text: $firstName, prompt: Text("First API").foregroundColor(.white.opacity(0.4)))
-                    TextField("", text: $lastName, prompt: Text("Last API").foregroundColor(.white.opacity(0.4)))
+                    TextField("", text: $firstName, prompt: Text("First Name").foregroundColor(.white.opacity(0.4)))
+                    TextField("", text: $lastName, prompt: Text("Last Name").foregroundColor(.white.opacity(0.4)))
                 }
                 TextField("", text: $email, prompt: Text("Email").foregroundColor(.white.opacity(0.4)))
                     .keyboardType(.emailAddress)
@@ -75,13 +75,18 @@ struct SignUpView: View {
         
         Task {
             do {
-                let uid = try await APIService.shared.signup(email: email, password: password, firstName: firstName, lastName: lastName)
-                print("Signed up successfully: \(uid)")
+                // 1. Create Account
+                let _ = try await APIService.shared.signup(email: email, password: password, firstName: firstName, lastName: lastName)
+                
+                // 2. Auto Login to get Token
+                let token = try await APIService.shared.login(email: email, password: password)
+                print("Signed up and logged in successfully")
+                
                 isLoading = false
                 
-                // Update global state to log in
+                // 3. Update global state
                 DispatchQueue.main.async {
-                    authManager.login(uid: uid)
+                    authManager.login(uid: token.local_id, token: token.id_token)
                 }
             } catch {
                 isLoading = false
