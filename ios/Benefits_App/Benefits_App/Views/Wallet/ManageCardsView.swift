@@ -187,22 +187,58 @@ struct AddCardSheet: View {
     @State private var geminiThinking = false
     @State private var foundCard: Card?
     
+    // Autocomplete state
+    @State private var suggestions: [String] = []
+    
     var body: some View {
         ZStack {
             Color(red: 16/255, green: 24/255, blue: 34/255).ignoresSafeArea()
-            VStack {
+            VStack(alignment: .leading) {
                 Text("Add Card")
                     .font(.headline)
                     .foregroundColor(.white)
                     .padding()
+                    .frame(maxWidth: .infinity, alignment: .center)
                 
                 TextField("Search card...", text: $searchQuery)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding()
+                    .padding(.horizontal)
                     .onSubmit { performSearch() }
+                    .onChange(of: searchQuery) { newValue in
+                        updateSuggestions(query: newValue)
+                    }
+                
+                // Suggestions List
+                if !suggestions.isEmpty {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(suggestions, id: \.self) { suggestion in
+                                Button(action: {
+                                    searchQuery = suggestion
+                                    suggestions = [] // Hide suggestions
+                                    // Optional: Perform search immediately
+                                    // performSearch() 
+                                }) {
+                                    Text(suggestion)
+                                        .foregroundColor(.white)
+                                        .padding()
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(Color.white.opacity(0.05))
+                                }
+                                Divider().background(Color.white.opacity(0.1))
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 200)
+                    .background(Color(red: 28/255, green: 32/255, blue: 39/255))
+                    .cornerRadius(8)
+                    .padding(.horizontal)
+                }
                 
                 if geminiThinking {
                     ProgressView().tint(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
                 }
                 
                 if let card = foundCard {
@@ -214,10 +250,12 @@ struct AddCardSheet: View {
                              Text(card.brand)
                          }
                          .padding()
+                         .frame(maxWidth: .infinity)
                          .background(Color.blue)
                          .cornerRadius(10)
                          .foregroundColor(.white)
                      }
+                     .padding()
                 }
                 
                 Spacer()
@@ -225,9 +263,30 @@ struct AddCardSheet: View {
         }
     }
     
+    func updateSuggestions(query: String) {
+        guard query.count > 2 else {
+            suggestions = []
+            return
+        }
+        
+        Task {
+            do {
+                // Debounce could be added here if needed, but for now simple async is fine
+                let results = try await APIService.shared.fetchCardSuggestions(query: query)
+                DispatchQueue.main.async {
+                    self.suggestions = results
+                }
+            } catch {
+                print("Suggestion error: \(error)")
+            }
+        }
+    }
+    
     func performSearch() {
         geminiThinking = true
         foundCard = nil
+        suggestions = [] // Hide suggestions on search
+        
         Task {
             do {
                 let card = try await APIService.shared.searchCard(query: searchQuery)
@@ -269,8 +328,8 @@ struct CardRow: View {
     let gradient: [Color]
     var onDelete: (() -> Void)? = nil
     
-    // New: Accept full benefits dictionary
-    var benefits: [String: String]? = nil
+    // New: Accept full benefits list
+    var benefits: [Benefit]? = nil
     
     var body: some View {
         HStack(spacing: 16) {
@@ -293,8 +352,8 @@ struct CardRow: View {
                 
                 // Smart Benefits Display
                 if let benefits = benefits, !benefits.isEmpty {
-                     // Take the first 1-2 benefits to show
-                     let benefitText = benefits.values.prefix(1).joined(separator: ", ")
+                     // Take the first benefit to show as preview
+                     let benefitText = benefits.prefix(1).map { $0.title }.joined(separator: ", ")
                      HStack(spacing: 4) {
                         Image(systemName: "sparkles")
                             .font(.system(size: 10))
@@ -355,6 +414,4 @@ struct BottomAction: View {
     }
 }
 
-#Preview {
-    ManageCardsView()
-}
+

@@ -10,14 +10,37 @@ class APIService {
 
     private init() {}
 
-    private var authToken: String?
+    private(set) var authToken: String?
+    private(set) var refreshTokenString: String?
+    private(set) var tokenExpiryDate: Date?
     
     func clearSession() {
         self.authToken = nil
+        self.refreshTokenString = nil
+        self.tokenExpiryDate = nil
     }
     
+    func setSession(_ token: AuthToken) {
+        self.authToken = token.id_token
+        self.refreshTokenString = token.refresh_token
+        
+        if let expiresInStr = token.expires_in, let seconds = Double(expiresInStr) {
+            self.tokenExpiryDate = Date().addingTimeInterval(seconds)
+        } else {
+            // Default 1 hour if missing
+             self.tokenExpiryDate = Date().addingTimeInterval(3600)
+        }
+    }
+    
+    // Legacy support (rename or keep)
     func setToken(_ token: String) {
         self.authToken = token
+    }
+    
+    func setFullSession(authToken: String, refreshToken: String?, expiry: Date?) {
+        self.authToken = authToken
+        self.refreshTokenString = refreshToken
+        self.tokenExpiryDate = expiry
     }
     
     // MARK: - Auth
@@ -86,7 +109,7 @@ class APIService {
 
         if httpResponse.statusCode == 200 {
             let token = try JSONDecoder().decode(AuthToken.self, from: data)
-            self.authToken = token.id_token // Store token
+            self.setSession(token) // Use unified session setter
             return token
         } else {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -167,6 +190,26 @@ class APIService {
         return try JSONDecoder().decode(Card.self, from: data)
     }
     
+    func fetchCardSuggestions(query: String) async throws -> [String] {
+        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "\(baseURL)/cards/auto?query=\(encodedQuery)") else {
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        if let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        let (data, _) = try await URLSession.shared.data(for: request)
+        
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let suggestions = json["suggestions"] as? [String] {
+            return suggestions
+        }
+        return []
+    }
+    
     func fetchUserCards() async throws -> [UserCard] {
         guard let url = URL(string: "\(baseURL)/me/cards") else {
             throw URLError(.badURL)
@@ -203,20 +246,86 @@ class APIService {
     }
     
     func removeUserCard(cardId: String) async throws {
-        guard let url = URL(string: "\(baseURL)/me/cards/\(cardId)") else {
+        // Encode the cardId since it may contain spaces (e.g., "The Platinum Card...")
+        guard let encodedCardId = cardId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: "\(baseURL)/me/cards/\(encodedCardId)") else {
             throw URLError(.badURL)
         }
         
+        try await performRequest(url: url, method: "DELETE")
+    }
+    
+    // MARK: - Internal Helper
+    
+    private func performRequest(url: URL, method: String = "GET", body: Data? = nil) async throws -> (Data, URLResponse) {
+        // check expiry
+        await checkTokenExpiry()
+        
         var request = URLRequest(url: url)
-        request.httpMethod = "DELETE"
+        request.httpMethod = method
+        if let body = body {
+            request.httpBody = body
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        
         if let token = authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         
-        let (_, response) = try await URLSession.shared.data(for: request)
-        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-            throw URLError(.badServerResponse)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
+             // Second chance: Try to refresh if we haven't already
+             print("401 received. Attempting refresh...")
+             if await refreshToken() {
+                 return try await performRequest(url: url, method: method, body: body)
+             }
         }
+        
+        return (data, response)
+    }
+    
+    private func checkTokenExpiry() async {
+        guard let expiryDate = tokenExpiryDate else { return }
+        // Refresh if < 5 minutes remaining
+        if Date().addingTimeInterval(300) > expiryDate {
+            print("Token expiring soon. Refreshing...")
+            _ = await refreshToken()
+        }
+    }
+    
+    func refreshToken() async -> Bool {
+        guard let refresh = refreshTokenString,
+              let url = URL(string: "\(baseURL)/refresh?refresh_token=\(refresh)") else {
+            return false
+        }
+        
+        // Use a clean request (no auth header needed potentially? or backend needs it? 
+        // Backend endpoint: POST /refresh with refresh_token as query param (based on my python code: `refresh_token: str`) or body?
+        // My python code: `@app.post("/refresh") def refresh_token(refresh_token: str):`
+        // Query param is easiest. "POST /refresh?refresh_token=..." works with FastAPI default scalar.
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                let token = try JSONDecoder().decode(AuthToken.self, from: data)
+                self.setSession(token)
+                // Need to notify AuthManager to persist... 
+                // For this simple arch, let's assume AuthManager will re-read or we use a callback
+                // But AuthManager persists. We should update AuthManager via Notification or shared state.
+                // Simpler: Send Notification
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: NSNotification.Name("TokenRefreshed"), object: nil)
+                }
+                return true
+            }
+        } catch {
+            print("Refresh failed: \(error)")
+        }
+        return false
     }
 }
 
@@ -226,7 +335,11 @@ struct AuthToken: Codable {
     let id_token: String
     let local_id: String
     let email: String
+    let refresh_token: String?
+    let expires_in: String? // Firebase sometimes returns string seconds
 }
+
+// ... existing models ...
 
 struct UserProfile: Codable {
     let email: String
@@ -239,7 +352,7 @@ struct Card: Codable, Identifiable {
     var id: String { name }
     let name: String
     let brand: String
-    let benefits: [String: String]
+    let benefits: [Benefit]
 }
 
 struct UserCard: Codable, Identifiable {
@@ -247,7 +360,7 @@ struct UserCard: Codable, Identifiable {
     let card_id: String?
     let name: String
     let brand: String
-    let benefits: [String: String]?
+    let benefits: [Benefit]?
     
     init(card: Card) {
         self.card_id = UUID().uuidString
@@ -255,4 +368,11 @@ struct UserCard: Codable, Identifiable {
         self.brand = card.brand
         self.benefits = card.benefits
     }
+}
+
+struct Benefit: Codable {
+    let category: String
+    let title: String
+    let description: String
+    let details: String?
 }

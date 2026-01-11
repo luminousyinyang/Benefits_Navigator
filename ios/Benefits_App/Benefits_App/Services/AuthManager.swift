@@ -10,12 +10,17 @@ class AuthManager: ObservableObject {
     
     // Keys for persistence
     private let kAuthToken = "auth_token"
+    private let kRefreshToken = "refresh_token"
+    private let kTokenExpiry = "token_expiry"
     private let kUserUID = "user_uid"
     private let kIsOnboarded = "is_onboarded"
     private let kCachedProfile = "cached_profile"
     private let kCachedCards = "cached_cards"
     
     init() {
+        // Observe internal refreshes
+        NotificationCenter.default.addObserver(self, selector: #selector(handleTokenRefresh), name: NSNotification.Name("TokenRefreshed"), object: nil)
+        
         // Restore session
         if let token = UserDefaults.standard.string(forKey: kAuthToken),
            let uid = UserDefaults.standard.string(forKey: kUserUID) {
@@ -23,6 +28,13 @@ class AuthManager: ObservableObject {
             self.currentUserUID = uid
             // Restore onboarded state
             self.isOnboarded = UserDefaults.standard.bool(forKey: kIsOnboarded)
+            
+            // Restore Tokens
+            let refreshToken = UserDefaults.standard.string(forKey: kRefreshToken)
+            let expiryDate = UserDefaults.standard.object(forKey: kTokenExpiry) as? Date
+            
+            // Initialize Service
+            APIService.shared.setFullSession(authToken: token, refreshToken: refreshToken, expiry: expiryDate)
             
             // Restore Profile
             if let data = UserDefaults.standard.data(forKey: kCachedProfile),
@@ -37,8 +49,6 @@ class AuthManager: ObservableObject {
                 self.userCards = cards
             }
             
-            APIService.shared.setToken(token)
-            
             // Refresh data in background
             Task {
                 await refreshData()
@@ -46,14 +56,44 @@ class AuthManager: ObservableObject {
         }
     }
     
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    @objc func handleTokenRefresh() {
+        // APIService has refreshed the token internally. We need to save the new state.
+        if let token = APIService.shared.authToken {
+             UserDefaults.standard.set(token, forKey: kAuthToken)
+        }
+        if let refresh = APIService.shared.refreshTokenString {
+             UserDefaults.standard.set(refresh, forKey: kRefreshToken)
+        }
+        if let expiry = APIService.shared.tokenExpiryDate {
+             UserDefaults.standard.set(expiry, forKey: kTokenExpiry)
+        }
+        print("AuthManager: Persisted refreshed tokens.")
+    }
+    
     func login(uid: String, token: String) {
         // Save state
         isLoggedIn = true
         currentUserUID = uid
         
-        // Persist
+        // Persist (APIService is already updated by login call, pull from there or just save what we have)
+        // LoginView usually calls APIService.login which currently returns AuthToken but we only passed `token` string here?
+        // Wait, LoginView likely calls AuthManager.login(uid, token).
+        // If we want to persist refresh token, we need to pass it or read from APIService.
+        // Better: Read from APIService since it holds the ground truth now.
+        
         UserDefaults.standard.set(token, forKey: kAuthToken)
         UserDefaults.standard.set(uid, forKey: kUserUID)
+        
+        if let refresh = APIService.shared.refreshTokenString {
+             UserDefaults.standard.set(refresh, forKey: kRefreshToken)
+        }
+        if let expiry = APIService.shared.tokenExpiryDate {
+             UserDefaults.standard.set(expiry, forKey: kTokenExpiry)
+        }
         
         Task {
             await refreshData()
@@ -100,6 +140,8 @@ class AuthManager: ObservableObject {
         
         // Clear persistence
         UserDefaults.standard.removeObject(forKey: kAuthToken)
+        UserDefaults.standard.removeObject(forKey: kRefreshToken)
+        UserDefaults.standard.removeObject(forKey: kTokenExpiry)
         UserDefaults.standard.removeObject(forKey: kUserUID)
         UserDefaults.standard.removeObject(forKey: kIsOnboarded)
         UserDefaults.standard.removeObject(forKey: kCachedProfile)

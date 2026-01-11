@@ -14,6 +14,8 @@ class Token(BaseModel):
     id_token: str
     local_id: str
     email: str
+    refresh_token: str | None = None
+    expires_in: str | int | None = None
 
 class UserProfile(BaseModel):
     uid: str
@@ -22,15 +24,21 @@ class UserProfile(BaseModel):
     last_name: str
     onboarded: bool = False
 
+class Benefit(BaseModel):
+    category: str
+    title: str
+    description: str
+    details: str | None = None
+
 class Card(BaseModel):
     id: str | None = None
     name: str
     brand: str
-    benefits: dict[str, str]
+    benefits: list[Benefit]
 
 class UserCard(BaseModel):
     card_id: str
     name: str
     brand: str
     # We might not need benefits for the list view, but helpful
-    benefits: dict[str, str] | None = None
+    benefits: list[Benefit] | None = None

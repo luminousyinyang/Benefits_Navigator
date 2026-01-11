@@ -17,6 +17,9 @@ struct OnboardingCardsView: View {
     @State private var errorMessage: String?
     @State private var showingError = false
     
+    // Autocomplete state
+    @State private var suggestions: [String] = []
+    
     // For "Gemini Finding..." animation
     @State private var geminiThinking = false
 
@@ -57,28 +60,55 @@ struct OnboardingCardsView: View {
                         }
                         .padding(.top, 30)
                         
-                        // Search Bar
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(textSecondary)
-                            TextField("", text: $searchQuery, prompt: Text("Search for card (e.g. Chase Sapphire)").foregroundColor(textSecondary.opacity(0.7)))
-                                .foregroundColor(.white)
-                                .onSubmit {
-                                    performSearch()
-                                }
-                            
-                            if !searchQuery.isEmpty {
-                                Button(action: { performSearch() }) {
-                                    Image(systemName: "arrow.right.circle.fill")
-                                        .foregroundColor(primaryBlue)
-                                        .font(.system(size: 24))
+                        // Search Bar Section
+                        VStack(spacing: 0) {
+                            HStack {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(textSecondary)
+                                TextField("", text: $searchQuery, prompt: Text("Search for card (e.g. Chase Sapphire)").foregroundColor(textSecondary.opacity(0.7)))
+                                    .foregroundColor(.white)
+                                    .onSubmit {
+                                        performSearch()
+                                    }
+                                    .onChange(of: searchQuery) { newValue in
+                                        updateSuggestions(query: newValue)
+                                    }
+                                
+                                if !searchQuery.isEmpty {
+                                    Button(action: { performSearch() }) {
+                                        Image(systemName: "arrow.right.circle.fill")
+                                            .foregroundColor(primaryBlue)
+                                            .font(.system(size: 24))
+                                    }
                                 }
                             }
+                            .padding()
+                            .background(cardBackground)
+                            .cornerRadius(12)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                            
+                            // Suggestions List
+                            if !suggestions.isEmpty {
+                                VStack(alignment: .leading, spacing: 0) {
+                                    ForEach(suggestions, id: \.self) { suggestion in
+                                        Button(action: {
+                                            searchQuery = suggestion
+                                            suggestions = []
+                                            // Optional: performSearch()
+                                        }) {
+                                            Text(suggestion)
+                                                .foregroundColor(.white)
+                                                .padding()
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .background(cardBackground)
+                                        }
+                                        Divider().background(Color.white.opacity(0.1))
+                                    }
+                                }
+                                .padding(.top, 4)
+                                .cornerRadius(8)
+                            }
                         }
-                        .padding()
-                        .background(cardBackground)
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
                         
                         if geminiThinking {
                             HStack(spacing: 8) {
@@ -231,12 +261,31 @@ struct OnboardingCardsView: View {
         }
     }
     
+    func updateSuggestions(query: String) {
+        guard query.count > 2 else {
+            suggestions = []
+            return
+        }
+        
+        Task {
+            do {
+                let results = try await APIService.shared.fetchCardSuggestions(query: query)
+                DispatchQueue.main.async {
+                    self.suggestions = results
+                }
+            } catch {
+                print("Suggestion error: \(error)")
+            }
+        }
+    }
+    
     func performSearch() {
         guard !searchQuery.isEmpty else { return }
         
         geminiThinking = true
         foundCard = nil
         errorMessage = nil
+        suggestions = [] // Hide suggestions
         
         Task {
             do {

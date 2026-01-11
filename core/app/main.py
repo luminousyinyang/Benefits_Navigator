@@ -2,21 +2,30 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from models import UserSignup, UserLogin, Token, Card, UserCard
 import auth
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
+import jobs
 
 load_dotenv()
 
 app = FastAPI(title="Benefits App Backend")
 
-# Initialize Gemini
+@app.on_event("startup")
+def startup_event():
+    jobs.start_scheduler()
+
+@app.on_event("shutdown")
+def shutdown_event():
+    jobs.shutdown_scheduler()
+
+# Initialize Gemini Client
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+client = None
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-3-pro-preview') # Using 1.5 Pro for better reasoning
+    client = genai.Client(api_key=GEMINI_API_KEY)
 else:
     print("Warning: GEMINI_API_KEY not set. AI features will be disabled.")
-    model = None
 
 from fastapi.security import OAuth2PasswordBearer
 
@@ -64,12 +73,33 @@ def login(user: UserLogin):
         return Token(
             id_token=auth_response['idToken'],
             local_id=auth_response['localId'],
-            email=auth_response['email']
+            email=auth_response['email'],
+            refresh_token=auth_response.get('refreshToken'),
+            expires_in=auth_response.get('expiresIn')
         )
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/refresh", response_model=Token)
+def refresh_token(refresh_token: str):
+    """
+    Exchanges a refresh token for a new ID token.
+    """
+    try:
+        response = auth.refresh_access_token(refresh_token)
+        return Token(
+            id_token=response['id_token'],
+            local_id=response['user_id'],
+            email="", # Refresh doesn't always return email, and it's not critical for session restoration if UID matches
+            refresh_token=response['refresh_token'],
+            expires_in=response['expires_in']
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/me", response_model=dict)
 def read_users_me(current_user: dict = Depends(get_current_user)):
@@ -95,6 +125,39 @@ def complete_onboarding(current_user: dict = Depends(get_current_user)):
     except HTTPException as e:
         raise e
 
+    except HTTPException as e:
+        raise e
+
+import google.generativeai as genai_deprecated # Avoid conflict if needed, or remove
+from google import genai
+from google.genai import types
+
+# ... impots ...
+
+# Initialize Gemini Client
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+client = None
+if GEMINI_API_KEY:
+    client = genai.Client(api_key=GEMINI_API_KEY)
+else:
+    print("Warning: GEMINI_API_KEY not set. AI features will be disabled.")
+
+
+# ... (auth routes) ...
+
+@app.get("/cards/auto")
+def suggest_cards(query: str, current_user: dict = Depends(get_current_user)):
+    """
+    Returns card suggestions for autocomplete.
+    """
+    try:
+        suggestions = auth.get_card_suggestions(query)
+        return {"suggestions": suggestions}
+    except Exception as e:
+        # Don't break the UI if autocomplete fails
+        print(f"Autocomplete error: {e}")
+        return {"suggestions": []}
+
 @app.get("/cards/search")
 def search_card(query: str, current_user: dict = Depends(get_current_user)):
     """
@@ -109,7 +172,7 @@ def search_card(query: str, current_user: dict = Depends(get_current_user)):
             print(f"Found card in global DB: {existing_card.get('name')}")
             return existing_card
         
-        if not model:
+        if not client:
              raise HTTPException(status_code=503, detail="AI Service Unavailable")
 
         # 2. Ask Gemini (Prompt Hardened)
@@ -119,22 +182,49 @@ def search_card(query: str, current_user: dict = Depends(get_current_user)):
         prompt = f"""
         I need you to identify a credit card based on this search query: "{safe_query}".
         
-        If the query matches a known real-world credit card (e.g. "Chase Sapphire", "Amex Gold", "Capital One Venture"), return a JSON object with its details.
+        If the query matches a known real-world credit card (e.g. "Chase Sapphire", "Amex Gold", "Capital One Venture"), perform a deep search for its **OFFICIAL "Guide to Benefits" or "Terms and Conditions" (PDF or Official Site)**.
         
-        Rules:
-        1. 'name': The full official name of the card.
-        2. 'brand': The issuing bank or network (e.g. 'Chase', 'American Express', 'Citi').
-        3. 'benefits': A dictionary where keys are short benefit titles (e.g. "Dining", "Travel") and values are brief descriptions (e.g. "4x points", "3x points").
+        Return a JSON object with its details.
+        Format:
+        {{
+            "name": "Full Official Name",
+            "brand": "Issuing Bank (e.g. Chase)",
+            "benefits": [
+                {{
+                    "category": "Travel" | "Dining" | "Shopping" | "Protection" | "Lifestyle",
+                    "title": "Short Title (e.g. 'Delta SkyClub Access')",
+                    "description": "One sentence summary.",
+                    "details": "Deep details. List specific retailers, coverage amounts, or limitations."
+                }}
+            ]
+        }}
         
-        If the query is gibberish or does not look like a credit card, return an empty JSON object {{}}.
+        IMPORTANT RULES:
+        1. 📄 SOURCE OF TRUTH: You MUST try to find the "Guide to Benefits" PDF or official landing page. Do not rely on third-party blogs if possible.
+        2. 🚫 EXCLUDE GENERIC/FINANCIAL FEATURES: Exclude "0% APR", "Annual Fees", "Balance Transfers", "Monthly Installments", "Family/Authorized User" features, "$0 Liability", "ID Theft Protection", and "Presale Tickets". These are standard or costs.
+        3. 💰 FOCUS ON VALUE: Prioritize benefits that save money (Credits, Reimbursements, Insurance, Status, Price Protection, Cash Back tiers).
+        4. 🛡️ MANDATORY CHECK: You MUST explicitly look for "Extended Warranty", "Purchase Protection", and "Return Protection". If the card has them, INCLUDE THEM. If not, only then omit them. Do not miss them.
+        5. 🔗 CONSOLIDATE: If a benefit is split (e.g. "3% at Apple" and "3% at Partners"), COMBINE them into one single benefit (e.g. "3% Daily Cash at Apple & Select Partners").
+        6. 📅 VERIFY DATE VALIDITY: Double-check that detailed partners (e.g. Panera, T-Mobile) are STILL valid for the current date. Do not list expired partners.
+        7. 📝 BE SPECIFIC: List specific active retailers and coverage amounts in 'details'.
+        8. 🔎 GO DEEP: Find mostly purchase perks and insurance.
         
-        Output strictly valid JSON. No markdown.
+        If the query is gibberish, return {{}}.
+        Output strictly valid JSON.
         """
         
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-3-pro-preview',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                response_mime_type='application/json'
+            )
+        )
+        
         text = response.text.strip()
         
-        # Cleanup potential markdown code blocks
+        # Cleanup potential markdown code blocks (even with mime type it can happen)
         if text.startswith("```json"):
             text = text[7:]
         if text.endswith("```"):

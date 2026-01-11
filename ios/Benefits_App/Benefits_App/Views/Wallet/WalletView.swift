@@ -10,6 +10,11 @@ struct WalletView: View {
     @EnvironmentObject var authManager: AuthManager
     
     @State private var selectedCardId: String? = nil
+    @State private var selectedCategory: WalletCategory = .insights
+    
+    enum WalletCategory {
+        case insights, offers, perks
+    }
     
     var body: some View {
         ZStack {
@@ -19,27 +24,32 @@ struct WalletView: View {
                 // Header
                 headerView
                 
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 25) {
-                        
-                        // Card Carousel
-                        cardCarousel
-                        
-                        // Tabs
-                        tabSection
-                        
-                        VStack(alignment: .leading, spacing: 30) {
-                            // Gemini Insights
-                            geminiInsightsSection
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(spacing: 25) {
                             
-                            // Active Offers
-                            activeOffersSection
+                            // Card Carousel
+                            cardCarousel
                             
-                            // Standard Perks
-                            standardPerksSection
+                            // Tabs
+                            tabSection(proxy: proxy)
+                            
+                            VStack(alignment: .leading, spacing: 30) {
+                                // Gemini Insights
+                                geminiInsightsSection
+                                    .id(WalletCategory.insights)
+                                
+                                // Active Offers
+                                activeOffersSection
+                                    .id(WalletCategory.offers)
+                                
+                                // Standard Perks
+                                standardPerksSection
+                                    .id(WalletCategory.perks)
+                            }
+                            .padding(.horizontal)
+                            .padding(.bottom, 100) // Space for FAB
                         }
-                        .padding(.horizontal)
-                        .padding(.bottom, 100) // Space for FAB
                     }
                 }
             }
@@ -179,29 +189,6 @@ struct WalletView: View {
                             .foregroundColor(.white)
                         }
                         .frame(width: 320, height: 200) // Constraint is on the container now
-                        
-                        // Scrolling Benefits (Chips)
-                        if let benefits = card.benefits, !benefits.isEmpty {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(benefits.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "sparkles")
-                                                .font(.system(size: 8))
-                                                .foregroundColor(.yellow)
-                                            Text(value)
-                                                .font(.system(size: 10, weight: .medium))
-                                                .foregroundColor(Color(red: 157/255, green: 168/255, blue: 185/255))
-                                        }
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.white.opacity(0.1))
-                                        .cornerRadius(8)
-                                    }
-                                }
-                            }
-                            .frame(width: 320) // Match card width
-                        }
                     }
                     .tag(Optional(card.card_id ?? card.id)) // Tag for selection, use card_id or id
                 }
@@ -211,12 +198,11 @@ struct WalletView: View {
         .frame(height: 280) // Constrain height for TabView
     }
     
-    private var tabSection: some View {
+    private func tabSection(proxy: ScrollViewProxy) -> some View {
         HStack(spacing: 0) {
-            tabItem(title: "All", isActive: false)
-            tabItem(title: "Perks", isActive: false)
-            tabItem(title: "Offers", isActive: false)
-            tabItem(title: "Insights", isActive: true, icon: "sparkles")
+            tabItem(title: "Insights", category: .insights, icon: "sparkles", proxy: proxy)
+            tabItem(title: "Offers", category: .offers, proxy: proxy)
+            tabItem(title: "Perks", category: .perks, proxy: proxy)
         }
         .padding(.horizontal)
         .overlay(
@@ -226,23 +212,30 @@ struct WalletView: View {
         )
     }
     
-    private func tabItem(title: String, isActive: Bool, icon: String? = nil) -> some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 4) {
-                if let icon = icon {
-                    Image(systemName: icon)
-                        .font(.caption)
-                }
-                Text(title)
-                    .font(.system(size: 14, weight: .bold))
+    private func tabItem(title: String, category: WalletCategory, icon: String? = nil, proxy: ScrollViewProxy) -> some View {
+        Button(action: {
+            withAnimation {
+                selectedCategory = category
+                proxy.scrollTo(category, anchor: .top)
             }
-            .foregroundColor(isActive ? primaryBlue : textSecondary)
-            
-            Rectangle()
-                .fill(isActive ? primaryBlue : Color.clear)
-                .frame(height: 2)
+        }) {
+            VStack(spacing: 12) {
+                HStack(spacing: 4) {
+                    if let icon = icon {
+                        Image(systemName: icon)
+                            .font(.caption)
+                    }
+                    Text(title)
+                        .font(.system(size: 14, weight: .bold))
+                }
+                .foregroundColor(selectedCategory == category ? primaryBlue : textSecondary)
+                
+                Rectangle()
+                    .fill(selectedCategory == category ? primaryBlue : Color.clear)
+                    .frame(height: 2)
+            }
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity)
     }
     
     private var geminiInsightsSection: some View {
@@ -378,8 +371,9 @@ struct WalletView: View {
                    let card = authManager.userCards.first(where: { ($0.card_id ?? $0.id) == selectedId }),
                    let benefits = card.benefits, !benefits.isEmpty {
                     
-                    ForEach(benefits.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
-                        perkRow(icon: "star.fill", title: value, sub: key, color: .blue)
+                    // Group by category if we wanted, but for now just list them
+                    ForEach(benefits, id: \.title) { benefit in
+                        BenefitRowView(benefit: benefit)
                     }
                     
                 } else {
@@ -390,32 +384,9 @@ struct WalletView: View {
             }
         }
     }
-    
-    private func perkRow(icon: String, title: String, sub: String?, color: Color) -> some View {
-        HStack(spacing: 15) {
-            Image(systemName: icon)
-                .foregroundColor(color)
-                .frame(width: 40, height: 40)
-                .background(color.opacity(0.1))
-                .clipShape(Circle())
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white)
-                if let sub = sub {
-                    Text(sub)
-                        .font(.system(size: 12))
-                        .foregroundColor(textSecondary)
-                }
-            }
-            Spacer()
-        }
-        .padding()
-        .background(cardBackground.opacity(0.5))
-        .cornerRadius(12)
-    }
 }
+
+
 
 // MARK: - Preview
 struct WalletView_Previews: PreviewProvider {

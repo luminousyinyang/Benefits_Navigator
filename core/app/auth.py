@@ -120,6 +120,34 @@ def verify_password(email: str, password: str):
             detail=error_msg
         )
 
+def refresh_access_token(refresh_token: str):
+    """
+    Exchanges a valid refresh token for a new ID token.
+    Endpoint: https://securetoken.googleapis.com/v1/token
+    """
+    if not FIREBASE_WEB_API_KEY:
+        raise HTTPException(
+             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+             detail="Server misconfiguration: FIREBASE_WEB_API_KEY not set."
+        )
+        
+    url = f"https://securetoken.googleapis.com/v1/token?key={FIREBASE_WEB_API_KEY}"
+    payload = {
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token
+    }
+    
+    response = requests.post(url, json=payload)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Token refresh failed: {response.text}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not refresh token. Please login again."
+        )
+
 def set_onboarded(uid: str, status: bool = True):
     """Updates the user's onboarded status."""
     try:
@@ -156,6 +184,27 @@ def get_global_card(query: str):
         
     return None
 
+def get_card_suggestions(query: str):
+    """
+    Returns a list of card names that start with the query (Autocomplete).
+    """
+    # Simple Firestore prefix search
+    # Note: Case sensitive. Ideally we store lowercase_name.
+    # For now assuming query matches the casing in DB or DB has standard casing.
+    end_query = query + '\uf8ff'
+    docs = db.collection('cards')\
+        .where('name', '>=', query)\
+        .where('name', '<=', end_query)\
+        .limit(10)\
+        .stream()
+        
+    suggestions = []
+    for doc in docs:
+        data = doc.to_dict()
+        if 'name' in data:
+            suggestions.append(data['name'])
+    return suggestions
+
 def add_user_card(uid: str, card_data: dict):
     """
     Links a card to the user's wallet.
@@ -165,29 +214,59 @@ def add_user_card(uid: str, card_data: dict):
     if not card_id:
          raise ValueError("Card must have an ID or Name")
 
-    # Add timestamp
-    card_data['added_at'] = firestore.SERVER_TIMESTAMP
-    # Ensure card_id is part of the data
-    card_data['card_id'] = card_id
+    # Relational Strategy:
+    # We only need the ID in the user's subcollection to link to global.
+    # But we might store 'added_at' metadata.
+    link_data = {
+        'card_id': card_id,
+        'added_at': firestore.SERVER_TIMESTAMP,
+        'name': card_data.get('name') # Redundant but useful for quick debugging
+    }
     
     # Save to user's subcollection
-    db.collection('users').document(uid).collection('cards').document(card_id).set(card_data)
+    db.collection('users').document(uid).collection('cards').document(card_id).set(link_data)
     
 def get_user_cards(uid: str):
     """
-    Fetches user's cards directly from their subcollection.
-    This is O(1) read (one query) instead of O(N) reads.
+    Fetches user's cards using a Relational Pattern.
+    1. Get Card IDs from User's subcollection.
+    2. Fetch up-to-date details from Global 'cards' collection.
     """
-    docs = db.collection('users').document(uid).collection('cards').stream()
+    # 1. Get references/IDs
+    user_card_docs = db.collection('users').document(uid).collection('cards').stream()
+    
+    card_ids = []
+    for doc in user_card_docs:
+        # We use the document ID as the card ID (name)
+        card_ids.append(doc.id)
+        
+    if not card_ids:
+        return []
+        
+    # 2. Fetch Global Data (Batch / WHERE IN)
+    # Firestore 'in' query supports up to 10 items. If > 10, need to chunk or use getAll.
+    # strict_consistency: db.getAll(*refs) is best.
     
     cards = []
-    for doc in docs:
-        data = doc.to_dict()
-        # Ensure ID is present (it should be in data, but good to be safe)
-        if 'card_id' not in data:
+    
+    # Chunking for safety (though getAll supports more, 'in' only 10)
+    # Using getAll with document references is efficient.
+    refs = [db.collection('cards').document(cid) for cid in card_ids]
+    
+    global_docs = db.get_all(refs)
+    
+    for doc in global_docs:
+        if doc.exists:
+            data = doc.to_dict()
+            # Ensure ID is injected
             data['card_id'] = doc.id
-        cards.append(data)
-                
+            cards.append(data)
+        else:
+            # Handle case where global card was deleted but user still has ref
+            # Option: Return basic data from user doc? Or skip?
+            # For now, skip.
+            print(f"Warning: User {uid} has orphaned card {doc.id}")
+            
     return cards
 
 def remove_user_card(uid: str, card_id: str):
