@@ -131,6 +131,12 @@ struct RecommendationView: View {
                             .padding(.horizontal)
                         }
                         
+                        // Sign-on Bonus Display
+                        if let bestCard = getCard(id: rec.best_card_id), let bonus = bestCard.sign_on_bonus {
+                            SignOnBonusProgressView(bonus: bonus)
+                                .padding(.horizontal)
+                        }
+                        
                         // Reasoning / "Why This Card?"
                         VStack(alignment: .leading, spacing: 16) {
                             Text("WHY THIS CARD?")

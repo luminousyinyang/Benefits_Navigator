@@ -23,6 +23,14 @@ struct OnboardingCardsView: View {
     // For "Gemini Finding..." animation
     @State private var geminiThinking = false
 
+    // Sign-on Bonus State
+    @State private var hasBonus = false
+    @State private var bonusAmount = ""
+    @State private var bonusType = "Points"
+    @State private var currentSpend = ""
+    @State private var targetSpend = ""
+    @State private var bonusDeadline = Date()
+
     var body: some View {
         ZStack {
             backgroundDark.ignoresSafeArea()
@@ -126,24 +134,106 @@ struct OnboardingCardsView: View {
                                     .font(.system(size: 12, weight: .bold))
                                     .foregroundColor(primaryBlue)
                                 
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(card.name)
-                                            .font(.system(size: 16, weight: .bold))
-                                            .foregroundColor(.white)
-                                        Text(card.brand)
-                                            .font(.system(size: 14))
-                                            .foregroundColor(textSecondary)
+                                VStack(alignment: .leading, spacing: 16) {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(card.name)
+                                                .font(.system(size: 16, weight: .bold))
+                                                .foregroundColor(.white)
+                                            Text(card.brand)
+                                                .font(.system(size: 14))
+                                                .foregroundColor(textSecondary)
+                                        }
+                                        Spacer()
+                                        Button(action: { addCardToWallet(card: card) }) {
+                                            Text("Add")
+                                                .font(.system(size: 14, weight: .bold)) // Fixed font weight
+                                                .padding(.horizontal, 16)
+                                                .padding(.vertical, 8)
+                                                .background(primaryBlue)
+                                                .foregroundColor(.white)
+                                                .cornerRadius(8)
+                                        }
                                     }
-                                    Spacer()
-                                    Button(action: { addCardToWallet(card: card) }) {
-                                        Text("Add")
-                                            .font(.system(size: 14, weight: .bold)) // Fixed font weight
-                                            .padding(.horizontal, 16)
-                                            .padding(.vertical, 8)
-                                            .background(primaryBlue)
+                                    
+                                    // Sign-on Bonus Toggle
+                                    Toggle(isOn: $hasBonus.animation()) {
+                                        Text("Track Sign-up Bonus")
+                                            .font(.system(size: 14, weight: .medium))
                                             .foregroundColor(.white)
-                                            .cornerRadius(8)
+                                    }
+                                    .tint(primaryBlue)
+                                    
+                                    if hasBonus {
+                                        VStack(spacing: 12) {
+                                            // Amount & Type
+                                            HStack {
+                                                TextField("Bonus Amount", text: $bonusAmount)
+                                                    .keyboardType(.numberPad)
+                                                    .padding(10)
+                                                    .background(Color.black.opacity(0.3))
+                                                    .cornerRadius(8)
+                                                    .foregroundColor(.white)
+                                                    .overlay(
+                                                        Text("Amount")
+                                                            .font(.caption)
+                                                            .foregroundColor(textSecondary)
+                                                            .padding(.top, -18)
+                                                            .padding(.leading, 4),
+                                                        alignment: .topLeading
+                                                    )
+                                                
+                                                Picker("Type", selection: $bonusType) {
+                                                    Text("Points").tag("Points")
+                                                    Text("Dollars ($)").tag("Dollars")
+                                                    Text("Miles").tag("Miles")
+                                                }
+                                                .pickerStyle(MenuPickerStyle())
+                                                .accentColor(.white)
+                                                .padding(6)
+                                                .background(Color.black.opacity(0.3))
+                                                .cornerRadius(8)
+                                            }
+                                            
+                                            // Target Spend Goal
+                                            TextField("Target Spend Goal ($)", text: $targetSpend)
+                                                .keyboardType(.decimalPad)
+                                                .padding(10)
+                                                .background(Color.black.opacity(0.3))
+                                                .cornerRadius(8)
+                                                .foregroundColor(.white)
+                                                .overlay(
+                                                    Text("Target Spend ($)")
+                                                        .font(.caption)
+                                                        .foregroundColor(textSecondary)
+                                                        .padding(.top, -18)
+                                                        .padding(.leading, 4),
+                                                    alignment: .topLeading
+                                                )
+                                            
+                                            // Already Spent
+                                            TextField("Amount Contributed ($)", text: $currentSpend)
+                                                .keyboardType(.decimalPad)
+                                                .padding(10)
+                                                .background(Color.black.opacity(0.3))
+                                                .cornerRadius(8)
+                                                .foregroundColor(.white)
+                                                .overlay(
+                                                    Text("Already Spent ($)")
+                                                        .font(.caption)
+                                                        .foregroundColor(textSecondary)
+                                                        .padding(.top, -18)
+                                                        .padding(.leading, 4),
+                                                    alignment: .topLeading
+                                                )
+                                            
+                                            // Deadline
+                                            DatePicker("Offer Ends", selection: $bonusDeadline, displayedComponents: .date)
+                                                .colorScheme(.dark)
+                                                .accentColor(primaryBlue)
+                                                .padding(4)
+                                        }
+                                        .padding(.top, 4)
                                     }
                                 }
                                 .padding()
@@ -287,6 +377,12 @@ struct OnboardingCardsView: View {
         errorMessage = nil
         suggestions = [] // Hide suggestions
         
+        // Reset Bonus State
+        hasBonus = false
+        bonusAmount = ""
+        currentSpend = ""
+        targetSpend = ""
+        
         Task {
             do {
                 let card = try await APIService.shared.searchCard(query: searchQuery)
@@ -306,7 +402,24 @@ struct OnboardingCardsView: View {
     
     func addCardToWallet(card: Card) {
         guard let uid = authManager.currentUserUID else { return }
-        let userCard = UserCard(card: card)
+        var userCard = UserCard(card: card)
+        
+        if hasBonus {
+            let amount = Double(bonusAmount) ?? 0.0
+            let spent = Double(currentSpend) ?? 0.0
+            let target = Double(targetSpend) ?? 0.0
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withFullDate] // YYYY-MM-DD
+            let dateStr = formatter.string(from: bonusDeadline)
+            
+            userCard.sign_on_bonus = SignOnBonus(
+                bonus_value: amount,
+                bonus_type: bonusType,
+                current_spend: spent,
+                target_spend: target,
+                end_date: dateStr
+            )
+        }
         
         Task {
             do {

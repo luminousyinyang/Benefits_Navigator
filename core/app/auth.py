@@ -223,22 +223,30 @@ def add_user_card(uid: str, card_data: dict):
         'name': card_data.get('name') # Redundant but useful for quick debugging
     }
     
+    # Save User-Specific Fields
+    if 'sign_on_bonus' in card_data and card_data['sign_on_bonus']:
+        link_data['sign_on_bonus'] = card_data['sign_on_bonus']
+    
     # Save to user's subcollection
     db.collection('users').document(uid).collection('cards').document(card_id).set(link_data)
     
 def get_user_cards(uid: str):
     """
     Fetches user's cards using a Relational Pattern.
-    1. Get Card IDs from User's subcollection.
+    1. Get Card IDs and User-Specific Data from User's subcollection.
     2. Fetch up-to-date details from Global 'cards' collection.
+    3. Merge Global Details + User Specifics (Sign-on Bonus).
     """
     # 1. Get references/IDs
     user_card_docs = db.collection('users').document(uid).collection('cards').stream()
     
+    user_cards_map = {} # Map ID -> User Data (e.g. bonus)
     card_ids = []
+    
     for doc in user_card_docs:
         # We use the document ID as the card ID (name)
         card_ids.append(doc.id)
+        user_cards_map[doc.id] = doc.to_dict()
         
     if not card_ids:
         return []
@@ -260,6 +268,12 @@ def get_user_cards(uid: str):
             data = doc.to_dict()
             # Ensure ID is injected
             data['card_id'] = doc.id
+            
+            # 3. Merge User Specifics
+            user_specific_data = user_cards_map.get(doc.id, {})
+            if 'sign_on_bonus' in user_specific_data:
+                data['sign_on_bonus'] = user_specific_data['sign_on_bonus']
+            
             cards.append(data)
         else:
             # Handle case where global card was deleted but user still has ref

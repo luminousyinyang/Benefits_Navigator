@@ -36,12 +36,19 @@ class Card(BaseModel):
     brand: str
     benefits: list[Benefit]
 
+class SignOnBonus(BaseModel):
+    bonus_value: float
+    bonus_type: str # "Points" or "Dollars"
+    current_spend: float = 0.0
+    target_spend: float = 0.0 # Added for progress bar
+    end_date: str # Using string for easier JSON handling (ISO format YYYY-MM-DD)
+
 class UserCard(BaseModel):
     card_id: str
     name: str
     brand: str
-    # We might not need benefits for the list view, but helpful
     benefits: list[Benefit] | None = None
+    sign_on_bonus: SignOnBonus | None = None
 
 class RecommendationRequest(BaseModel):
     store_name: str

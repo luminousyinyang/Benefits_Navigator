@@ -293,7 +293,10 @@ def get_recommendation(request: RecommendationRequest, current_user: dict = Depe
         cards_str = ""
         for card in request.user_cards:
             benefits_str = ", ".join([f"{b.title} ({b.category})" for b in card.benefits]) if card.benefits else "Standard Benefits"
-            cards_str += f"- ID: {card.card_id}, Name: {card.name}, Brand: {card.brand}\n  Benefits: {benefits_str}\n"
+            bonus_str = ""
+            if card.sign_on_bonus:
+                bonus_str = f"\n  *** ACTIVE SIGN-ON BONUS: Earn {card.sign_on_bonus.bonus_value} {card.sign_on_bonus.bonus_type} by {card.sign_on_bonus.end_date}. Spent: ${card.sign_on_bonus.current_spend} ***"
+            cards_str += f"- ID: {card.card_id}, Name: {card.name}, Brand: {card.brand}\n  Benefits: {benefits_str}{bonus_str}\n"
 
         priority_text = "PRIORITIZE EXTENDED WARRANTY and PURCHASE PROTECTION above all else." if request.prioritize_warranty else "Maximizing Cash Back/Points Value is the ONLY goal."
 

@@ -394,13 +394,23 @@ struct UserCard: Codable, Identifiable {
     let name: String
     let brand: String
     let benefits: [Benefit]?
+    var sign_on_bonus: SignOnBonus? // Added
     
     init(card: Card) {
         self.card_id = UUID().uuidString
         self.name = card.name
         self.brand = card.brand
         self.benefits = card.benefits
+        self.sign_on_bonus = nil
     }
+}
+
+struct SignOnBonus: Codable {
+    let bonus_value: Double
+    let bonus_type: String // "Points" or "Dollars"
+    let current_spend: Double // User input for how much they already spent
+    let target_spend: Double // Added for progress bar
+    let end_date: String // ISO String YYYY-MM-DD
 }
 
     struct Benefit: Codable {

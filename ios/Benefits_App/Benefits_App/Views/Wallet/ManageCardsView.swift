@@ -14,13 +14,17 @@ struct ManageCardsView: View {
     @State private var showingAddCardSheet = false
     @State private var selectedCard: UserCard? = nil
     
+    // Delete Confirmation State
+    @State private var cardToDelete: UserCard?
+    @State private var showingDeleteAlert = false
+    
     var body: some View {
         ZStack {
             backgroundDark.ignoresSafeArea()
             
             VStack(spacing: 0) {
+            // ... (Header and scroll view logic is fine, no changes needed inside)
                 // MARK: - Navigation Bar
-                // Custom header removed as per user request to use system navigation or simpler UI.
                 VStack(spacing: 8) {
                     Text("My Wallet")
                         .font(.system(size: 17, weight: .bold))
@@ -82,7 +86,7 @@ struct ManageCardsView: View {
                                         iconColor: primaryBlue,
                                         gradient: [Color.blue, Color.purple],
                                         onDelete: {
-                                            deleteCard(card)
+                                            confirmDelete(card)
                                         },
                                         benefits: card.benefits
                                     )
@@ -157,6 +161,18 @@ struct ManageCardsView: View {
         .sheet(item: $selectedCard) { card in
             CardDetailView(card: card)
         }
+        .alert(isPresented: $showingDeleteAlert) {
+            Alert(
+                title: Text("Delete Card?"),
+                message: Text("Are you sure you want to delete \(cardToDelete?.name ?? "this card")? This cannot be undone."),
+                primaryButton: .destructive(Text("Delete")) {
+                    if let card = cardToDelete {
+                        performDelete(card)
+                    }
+                },
+                secondaryButton: .cancel()
+            )
+        }
     }
     
     func fetchCards() {
@@ -165,7 +181,12 @@ struct ManageCardsView: View {
         }
     }
     
-    func deleteCard(_ card: UserCard) {
+    func confirmDelete(_ card: UserCard) {
+        cardToDelete = card
+        showingDeleteAlert = true
+    }
+    
+    func performDelete(_ card: UserCard) {
         guard let cardId = card.card_id else { return }
         Task {
             do {
@@ -186,80 +207,229 @@ struct AddCardSheet: View {
     @State private var searchQuery = ""
     @State private var geminiThinking = false
     @State private var foundCard: Card?
+    @State private var errorMessage: String?
+    @State private var showingError = false
     
     // Autocomplete state
     @State private var suggestions: [String] = []
     
+    // Sign-on Bonus State
+    @State private var hasBonus = false
+    @State private var bonusAmount = ""
+    @State private var bonusType = "Points"
+    @State private var currentSpend = ""
+    @State private var targetSpend = ""
+    @State private var bonusDeadline = Date()
+    
+    // Theme Colors
+    let backgroundDark = Color(red: 16/255, green: 24/255, blue: 34/255)
+    let cardBackground = Color(red: 28/255, green: 32/255, blue: 39/255)
+    let primaryBlue = Color(red: 19/255, green: 109/255, blue: 236/255)
+    let textSecondary = Color(red: 157/255, green: 168/255, blue: 185/255)
+    
     var body: some View {
         ZStack {
-            Color(red: 16/255, green: 24/255, blue: 34/255).ignoresSafeArea()
-            VStack(alignment: .leading) {
-                Text("Add Card")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .center)
-                
-                TextField("Search card...", text: $searchQuery)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding(.horizontal)
-                    .onSubmit { performSearch() }
-                    .onChange(of: searchQuery) { newValue in
-                        updateSuggestions(query: newValue)
+            backgroundDark.ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Text("Add New Card")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.white)
+                    Spacer()
+                    Button(action: { isPresented = false }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(textSecondary)
                     }
+                }
+                .padding()
                 
-                // Suggestions List
-                if !suggestions.isEmpty {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(suggestions, id: \.self) { suggestion in
-                                Button(action: {
-                                    searchQuery = suggestion
-                                    suggestions = [] // Hide suggestions
-                                    // Optional: Perform search immediately
-                                    // performSearch() 
-                                }) {
-                                    Text(suggestion)
-                                        .foregroundColor(.white)
-                                        .padding()
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .background(Color.white.opacity(0.05))
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // Search Bar Section
+                        VStack(spacing: 0) {
+                            HStack {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(textSecondary)
+                                TextField("", text: $searchQuery, prompt: Text("Search for card (e.g. Amex Gold)").foregroundColor(textSecondary.opacity(0.7)))
+                                    .foregroundColor(.white)
+                                    .onSubmit {
+                                        performSearch()
+                                    }
+                                    .onChange(of: searchQuery) { newValue in
+                                        updateSuggestions(query: newValue)
+                                    }
+                                
+                                if !searchQuery.isEmpty {
+                                    Button(action: { performSearch() }) {
+                                        Image(systemName: "arrow.right.circle.fill")
+                                            .foregroundColor(primaryBlue)
+                                            .font(.system(size: 24))
+                                    }
                                 }
-                                Divider().background(Color.white.opacity(0.1))
+                            }
+                            .padding()
+                            .background(cardBackground)
+                            .cornerRadius(12)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                            
+                            // Suggestions List
+                            if !suggestions.isEmpty {
+                                VStack(alignment: .leading, spacing: 0) {
+                                    ForEach(suggestions, id: \.self) { suggestion in
+                                        Button(action: {
+                                            searchQuery = suggestion
+                                            suggestions = [] // Hide suggestions
+                                            // performSearch() // Optional auto-search
+                                        }) {
+                                            Text(suggestion)
+                                                .foregroundColor(.white)
+                                                .padding()
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .background(cardBackground)
+                                        }
+                                        Divider().background(Color.white.opacity(0.1))
+                                    }
+                                }
+                                .padding(.top, 4)
+                                .cornerRadius(8)
+                            }
+                        }
+                        
+                        if geminiThinking {
+                            HStack(spacing: 8) {
+                                ProgressView().tint(primaryBlue)
+                                Text("Gemini is analyzing...")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(primaryBlue)
+                            }
+                        }
+                        
+                        // Search Result (Found Card)
+                        if let card = foundCard {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("FOUND CARD")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(primaryBlue)
+                                
+                                VStack(alignment: .leading, spacing: 16) {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(card.name)
+                                                .font(.system(size: 16, weight: .bold))
+                                                .foregroundColor(.white)
+                                            Text(card.brand)
+                                                .font(.system(size: 14))
+                                                .foregroundColor(textSecondary)
+                                        }
+                                        Spacer()
+                                    }
+                                    
+                                    // Sign-on Bonus Toggle
+                                    Toggle(isOn: $hasBonus.animation()) {
+                                        Text("Track Sign-up Bonus")
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(.white)
+                                    }
+                                    .tint(primaryBlue)
+                                    
+                                    if hasBonus {
+                                        VStack(spacing: 12) {
+                                            // Amount & Type
+                                            HStack {
+                                                TextField("Bonus Amount", text: $bonusAmount)
+                                                    .keyboardType(.numberPad)
+                                                    .padding(10)
+                                                    .background(Color.black.opacity(0.3))
+                                                    .cornerRadius(8)
+                                                    .foregroundColor(.white)
+                                                    .overlay(
+                                                        Text("Amount")
+                                                            .font(.caption)
+                                                            .foregroundColor(textSecondary)
+                                                            .padding(.top, -18)
+                                                            .padding(.leading, 4),
+                                                        alignment: .topLeading
+                                                    )
+                                                
+                                                Picker("Type", selection: $bonusType) {
+                                                    Text("Points").tag("Points")
+                                                    Text("Dollars ($)").tag("Dollars")
+                                                    Text("Miles").tag("Miles")
+                                                }
+                                                .pickerStyle(MenuPickerStyle())
+                                                .accentColor(.white)
+                                                .padding(6)
+                                                .background(Color.black.opacity(0.3))
+                                                .cornerRadius(8)
+                                            }
+                                            
+                                            // Target Spend Goal
+                                            TextField("Target Spend Goal ($)", text: $targetSpend)
+                                                .keyboardType(.decimalPad)
+                                                .padding(10)
+                                                .background(Color.black.opacity(0.3))
+                                                .cornerRadius(8)
+                                                .foregroundColor(.white)
+                                                .overlay(
+                                                    Text("Target Spend ($)")
+                                                        .font(.caption)
+                                                        .foregroundColor(textSecondary)
+                                                        .padding(.top, -18)
+                                                        .padding(.leading, 4),
+                                                    alignment: .topLeading
+                                                )
+                                            
+                                            // Already Spent
+                                            TextField("Amount Contributed ($)", text: $currentSpend)
+                                                .keyboardType(.decimalPad)
+                                                .padding(10)
+                                                .background(Color.black.opacity(0.3))
+                                                .cornerRadius(8)
+                                                .foregroundColor(.white)
+                                                .overlay(
+                                                    Text("Already Spent ($)")
+                                                        .font(.caption)
+                                                        .foregroundColor(textSecondary)
+                                                        .padding(.top, -18)
+                                                        .padding(.leading, 4),
+                                                    alignment: .topLeading
+                                                )
+                                            
+                                            // Deadline
+                                            DatePicker("Offer Ends", selection: $bonusDeadline, displayedComponents: .date)
+                                                .colorScheme(.dark)
+                                                .accentColor(primaryBlue)
+                                                .padding(4)
+                                        }
+                                        .padding(.top, 4)
+                                    }
+                                    
+                                    Button(action: { addCard(card) }) {
+                                        Text("Add Card")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 12)
+                                            .background(primaryBlue)
+                                            .foregroundColor(.white)
+                                            .cornerRadius(10)
+                                    }
+                                }
+                                .padding()
+                                .background(cardBackground)
+                                .cornerRadius(12)
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(primaryBlue.opacity(0.5), lineWidth: 1))
                             }
                         }
                     }
-                    .frame(maxHeight: 200)
-                    .background(Color(red: 28/255, green: 32/255, blue: 39/255))
-                    .cornerRadius(8)
                     .padding(.horizontal)
                 }
-                
-                if geminiThinking {
-                    ProgressView().tint(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                }
-                
-                if let card = foundCard {
-                     Button(action: {
-                         addCard(card)
-                     }) {
-                         VStack {
-                             Text(card.name).bold()
-                             Text(card.brand)
-                         }
-                         .padding()
-                         .frame(maxWidth: .infinity)
-                         .background(Color.blue)
-                         .cornerRadius(10)
-                         .foregroundColor(.white)
-                     }
-                     .padding()
-                }
-                
-                Spacer()
             }
+        }
+        .alert(isPresented: $showingError) {
+             Alert(title: Text("Error"), message: Text(errorMessage ?? "Unknown error"), dismissButton: .default(Text("OK")))
         }
     }
     
@@ -271,7 +441,6 @@ struct AddCardSheet: View {
         
         Task {
             do {
-                // Debounce could be added here if needed, but for now simple async is fine
                 let results = try await APIService.shared.fetchCardSuggestions(query: query)
                 DispatchQueue.main.async {
                     self.suggestions = results
@@ -283,9 +452,18 @@ struct AddCardSheet: View {
     }
     
     func performSearch() {
+        guard !searchQuery.isEmpty else { return }
+        
         geminiThinking = true
         foundCard = nil
+        errorMessage = nil
         suggestions = [] // Hide suggestions on search
+        
+        // Reset Bonus State
+        hasBonus = false
+        bonusAmount = ""
+        currentSpend = ""
+        targetSpend = ""
         
         Task {
             do {
@@ -295,15 +473,35 @@ struct AddCardSheet: View {
                     self.geminiThinking = false
                 }
             } catch {
-                print(error)
-                geminiThinking = false
+                 DispatchQueue.main.async {
+                    self.geminiThinking = false
+                    self.errorMessage = error.localizedDescription
+                    self.showingError = true
+                }
             }
         }
     }
     
     func addCard(_ card: Card) {
-        // guard let uid = authManager.currentUserUID else { return }
-        let userCard = UserCard(card: card)
+        var userCard = UserCard(card: card)
+        
+        if hasBonus {
+            let amount = Double(bonusAmount) ?? 0.0
+            let spent = Double(currentSpend) ?? 0.0
+            let target = Double(targetSpend) ?? 0.0
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withFullDate] // YYYY-MM-DD
+            let dateStr = formatter.string(from: bonusDeadline)
+            
+            userCard.sign_on_bonus = SignOnBonus(
+                bonus_value: amount,
+                bonus_type: bonusType,
+                current_spend: spent,
+                target_spend: target,
+                end_date: dateStr
+            )
+        }
+        
         Task {
             do {
                 try await APIService.shared.addUserCard(card: userCard)
@@ -313,6 +511,10 @@ struct AddCardSheet: View {
                 }
             } catch {
                 print(error)
+                DispatchQueue.main.async {
+                    self.errorMessage = "Failed to add card: \(error.localizedDescription)"
+                    self.showingError = true
+                }
             }
         }
     }
