@@ -3,7 +3,7 @@ from apscheduler.triggers.cron import CronTrigger
 from google import genai
 from google.genai import types
 import os
-import auth
+import auth as auth
 from firebase_admin import firestore
 import time
 import json

@@ -1,11 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException, status
-from models import UserSignup, UserLogin, Token, Card, UserCard
-import auth
+from models import UserSignup, UserLogin, Token, Card, UserCard, RecommendationRequest, RecommendationResponse
+import auth as auth
 import os
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
-import jobs
+import jobs as jobs
 
 load_dotenv()
 
@@ -278,6 +278,73 @@ def remove_card_from_wallet(card_id: str, current_user: dict = Depends(get_curre
         return {"status": "success"}
     except HTTPException as e:
         raise e
+
+@app.post("/recommend", response_model=RecommendationResponse)
+def get_recommendation(request: RecommendationRequest, current_user: dict = Depends(get_current_user)):
+    """
+    Analyzes the user's cards and the specific store to recommend the best card.
+    Uses Gemini + Google Search to determine store category (MCC) and match perks.
+    """
+    try:
+        if not client:
+             raise HTTPException(status_code=503, detail="AI Service Unavailable")
+
+        # Prepare card data for prompt
+        cards_str = ""
+        for card in request.user_cards:
+            benefits_str = ", ".join([f"{b.title} ({b.category})" for b in card.benefits]) if card.benefits else "Standard Benefits"
+            cards_str += f"- ID: {card.card_id}, Name: {card.name}, Brand: {card.brand}\n  Benefits: {benefits_str}\n"
+
+        priority_text = "PRIORITIZE EXTENDED WARRANTY and PURCHASE PROTECTION above all else." if request.prioritize_warranty else "Maximizing Cash Back/Points Value is the ONLY goal."
+
+        prompt = f"""
+        Act as an expert financial advisor. The user is shopping at: "{request.store_name}".
+        
+        GOAL: Recommend the SINGLE BEST credit card from the list below to use for this purchase.
+        STRATEGY: {priority_text}
+        
+        USER'S CARDS:
+        {cards_str}
+        
+        STEPS:
+        1. 🌍 SEARCH: Use Google Search to identify what kind of store "{request.store_name}" is (e.g., Grocery, Dining, Travel, Electronics, Drugstore).
+        2. 🧠 ANALYZE: Compare the user's cards against this category.
+           - If Strategy is WARRANTY: Look for "Extended Warranty", "Purchase Protection". A card with these WINS over a card with high points but no protection.
+           - If Strategy is VALUE: Look for the highest multiplier (e.g. 4x > 3x > 2% > 1.5%).
+        3. 🧮 CALCULATE: Estimate the return value (e.g. "4% back", "$15 value").
+        
+        OUTPUT JSON:
+        {{
+            "best_card_id": "Exact ID from list",
+            "reasoning": ["Reason 1", "Reason 2"],
+            "estimated_return": "e.g. '4% Cash Back' or 'Extended Warranty Included'",
+            "runner_up_id": "Optional ID of 2nd best",
+            "runner_up_reasoning": ["Why it's second"],
+            "runner_up_return": "e.g. '1.5% Cash Back'"
+        }}
+        """
+        
+        response = client.models.generate_content(
+            model='gemini-3-pro-preview',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                response_mime_type='application/json'
+            )
+        )
+        
+        text = response.text.strip()
+        if text.startswith("```json"): text = text[7:]
+        if text.endswith("```"): text = text[:-3]
+        
+        import json
+        result = json.loads(text)
+        
+        return RecommendationResponse(**result)
+
+    except Exception as e:
+        print(f"Recommendation Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

@@ -42,3 +42,16 @@ class UserCard(BaseModel):
     brand: str
     # We might not need benefits for the list view, but helpful
     benefits: list[Benefit] | None = None
+
+class RecommendationRequest(BaseModel):
+    store_name: str
+    prioritize_warranty: bool
+    user_cards: list[UserCard]
+
+class RecommendationResponse(BaseModel):
+    best_card_id: str
+    reasoning: list[str]
+    estimated_return: str
+    runner_up_id: str | None = None
+    runner_up_reasoning: list[str] | None = None
+    runner_up_return: str | None = None

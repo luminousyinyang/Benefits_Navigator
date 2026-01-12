@@ -9,6 +9,7 @@ struct HomeView: View {
     
     @State private var searchText = ""
     @State private var prioritizeWarranty = false
+    @State private var navigateToRecommendation = false
     
     @EnvironmentObject var authManager: AuthManager
 
@@ -107,6 +108,11 @@ struct HomeView: View {
                                         .foregroundColor(Color.gray.opacity(0.8))
                                     )
                                     .foregroundColor(.white)
+                                    .onSubmit {
+                                        if !searchText.isEmpty {
+                                            navigateToRecommendation = true
+                                        }
+                                    }
                                     
                                     Image(systemName: "mic.fill")
                                         .foregroundColor(.gray)
@@ -216,6 +222,9 @@ struct HomeView: View {
                         .background(backgroundDark)
                     }
                 }
+            }
+            .navigationDestination(isPresented: $navigateToRecommendation) {
+                RecommendationView(storeName: searchText, prioritizeWarranty: prioritizeWarranty)
             }
         }
     }

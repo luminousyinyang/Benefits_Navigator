@@ -255,6 +255,39 @@ class APIService {
         try await performRequest(url: url, method: "DELETE")
     }
     
+    // MARK: - Recommendation
+    
+    func getRecommendation(storeName: String, prioritizeWarranty: Bool, userCards: [UserCard]) async throws -> RecommendationResponse {
+        guard let url = URL(string: "\(baseURL)/recommend") else {
+            throw URLError(.badURL)
+        }
+        
+        let body = RecommendationRequest(
+            store_name: storeName,
+            prioritize_warranty: prioritizeWarranty,
+            user_cards: userCards
+        )
+        
+        let jsonData = try JSONEncoder().encode(body)
+        
+        // Use performRequest to handle token refresh and auth headers automatically
+        let (data, response) = try await performRequest(url: url, method: "POST", body: jsonData)
+        
+        if let str = String(data: data, encoding: .utf8) {
+            print("RAW RECOMMENDATION JSON: \(str)")
+        }
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let detail = json["detail"] as? String {
+                 throw NSError(domain: "APIService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: detail])
+             }
+             throw URLError(.badServerResponse)
+        }
+        
+        return try JSONDecoder().decode(RecommendationResponse.self, from: data)
+    }
+    
     // MARK: - Internal Helper
     
     private func performRequest(url: URL, method: String = "GET", body: Data? = nil) async throws -> (Data, URLResponse) {
@@ -370,9 +403,24 @@ struct UserCard: Codable, Identifiable {
     }
 }
 
-struct Benefit: Codable {
+    struct Benefit: Codable {
     let category: String
     let title: String
     let description: String
     let details: String?
+}
+
+struct RecommendationRequest: Codable {
+    let store_name: String
+    let prioritize_warranty: Bool
+    let user_cards: [UserCard]
+}
+
+struct RecommendationResponse: Codable {
+    let best_card_id: String
+    let reasoning: [String]
+    let estimated_return: String
+    let runner_up_id: String?
+    let runner_up_reasoning: [String]?
+    let runner_up_return: String?
 }
