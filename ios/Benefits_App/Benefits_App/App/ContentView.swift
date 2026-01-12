@@ -9,7 +9,7 @@ struct ContentView: View {
                 if !authManager.isOnboarded {
                      OnboardingCardsView()
                 } else {
-                    HomeView()
+                    MainTabView()
                 }
             } else {
                 NavigationView {

@@ -12,6 +12,7 @@ struct HomeView: View {
     @State private var navigateToRecommendation = false
     
     @EnvironmentObject var authManager: AuthManager
+    @Binding var selectedTab: Int
 
     // Computed property for display
     var firstName: String {
@@ -29,16 +30,20 @@ struct HomeView: View {
                     // MARK: - Header
                     HStack {
                         HStack(spacing: 12) {
-                            ZStack(alignment: .bottomTrailing) {
-                                Image(systemName: "person.crop.circle.fill")
-                                    .resizable()
-                                    .frame(width: 40, height: 40)
-                                    .foregroundColor(.gray)
-                                
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 12, height: 12)
-                                    .overlay(Circle().stroke(backgroundDark, lineWidth: 2))
+                            Button(action: {
+                                selectedTab = 3 // Switch to Profile Tab
+                            }) {
+                                ZStack(alignment: .bottomTrailing) {
+                                    Image(systemName: "person.crop.circle.fill")
+                                        .resizable()
+                                        .frame(width: 40, height: 40)
+                                        .foregroundColor(.gray)
+                                    
+                                    Circle()
+                                        .fill(Color.green)
+                                        .frame(width: 12, height: 12)
+                                        .overlay(Circle().stroke(backgroundDark, lineWidth: 2))
+                                }
                             }
                             
                             VStack(alignment: .leading, spacing: 0) {
@@ -208,19 +213,7 @@ struct HomeView: View {
                         .padding(.top, 10)
                     }
                     
-                    // MARK: - Bottom Tab Bar
-                    VStack(spacing: 0) {
-                        Divider().background(Color.gray.opacity(0.3))
-                        HStack {
-                            TabBarItem(icon: "house.fill", title: "Home", isActive: true, activeColor: primaryBlue)
-                            TabBarItem(icon: "wallet.pass.fill", title: "Cards", isActive: false, activeColor: primaryBlue)
-                            TabBarItem(icon: "safari.fill", title: "Discover", isActive: false, activeColor: primaryBlue)
-                            TabBarItem(icon: "person.fill", title: "Profile", isActive: false, activeColor: primaryBlue)
-                        }
-                        .padding(.top, 12)
-                        .padding(.bottom, 30)
-                        .background(backgroundDark)
-                    }
+
                 }
             }
             .navigationDestination(isPresented: $navigateToRecommendation) {
@@ -287,6 +280,7 @@ struct TabBarItem: View {
 
 struct HomeView_Previews: PreviewProvider {
     static var previews: some View {
-        HomeView()
+        HomeView(selectedTab: .constant(0))
+            .environmentObject(AuthManager())
     }
 }
