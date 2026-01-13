@@ -226,6 +226,27 @@ class APIService {
         try await performRequest(url: url, method: "DELETE")
     }
     
+    func updateCardBonus(cardId: String, currentSpend: Double) async throws {
+        guard let encodedCardId = cardId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: "\(baseURL)/me/cards/\(encodedCardId)/bonus") else {
+            throw URLError(.badURL)
+        }
+        
+        let body: [String: Any] = ["current_spend": currentSpend]
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+        
+        try await performRequest(url: url, method: "PATCH", body: jsonData)
+    }
+    
+    func deleteCardBonus(cardId: String) async throws {
+        guard let encodedCardId = cardId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: "\(baseURL)/me/cards/\(encodedCardId)/bonus") else {
+            throw URLError(.badURL)
+        }
+        
+        try await performRequest(url: url, method: "DELETE")
+    }
+    
     // MARK: - Recommendation
     
     func getRecommendation(storeName: String, prioritizeWarranty: Bool, userCards: [UserCard]) async throws -> RecommendationResponse {
@@ -384,6 +405,7 @@ struct SignOnBonus: Codable {
     let current_spend: Double // User input for how much they already spent
     let target_spend: Double // Added for progress bar
     let end_date: String // ISO String YYYY-MM-DD
+    let last_updated: String? // Added for tracking
 }
 
     struct Benefit: Codable {

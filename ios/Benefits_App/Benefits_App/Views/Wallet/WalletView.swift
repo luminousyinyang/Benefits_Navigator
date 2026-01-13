@@ -10,6 +10,7 @@ struct WalletView: View {
     @EnvironmentObject var authManager: AuthManager
     
     @State private var selectedCardId: String? = nil
+    @State private var editingBonusCard: UserCard?
     @State private var selectedCategory: WalletCategory = .insights
     
     enum WalletCategory {
@@ -72,8 +73,40 @@ struct WalletView: View {
         .onAppear {
             fetchCards()
         }
+        .sheet(item: $editingBonusCard) { card in
+             // We need to re-verify the bonus exists on this card instance or handling it safely
+             if let bonus = card.sign_on_bonus {
+                BonusEditView(card: card, bonus: bonus, parentView: self)
+                    .presentationDetents([.fraction(0.45)])
+                    .presentationDragIndicator(.visible)
+             } else {
+                 Text("Error: No bonus data found.")
+                    .presentationDetents([.medium])
+             }
+        }
     }
     
+
+    // MARK: - Bonus Management Actions
+    func performBonusUpdate(cardId: String, amount: Double) async {
+        do {
+            try await APIService.shared.updateCardBonus(cardId: cardId, currentSpend: amount)
+            await authManager.refreshData()
+            // Editing state clears automatically when sheet dismisses, 
+            // but we can ensure refresh happens.
+        } catch {
+            print("Error updating bonus: \(error)")
+        }
+    }
+    
+    func performBonusDelete(cardId: String) async {
+        do {
+            try await APIService.shared.deleteCardBonus(cardId: cardId)
+            await authManager.refreshData()
+        } catch {
+            print("Error deleting bonus: \(error)")
+        }
+    }
 
     func fetchCards() {
 
@@ -342,13 +375,22 @@ struct WalletView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.white)
                 Spacer()
-                Text("Ends \(formattedDate(bonus.end_date))")
-                    .font(.system(size: 10, weight: .bold))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(primaryBlue.opacity(0.2))
-                    .foregroundColor(primaryBlue)
-                    .cornerRadius(4)
+                
+                // Manage Button (Top Right)
+                Button(action: {
+                    if let selectedId = selectedCardId,
+                       let card = authManager.userCards.first(where: { ($0.card_id ?? $0.id) == selectedId }) {
+                        self.editingBonusCard = card
+                    }
+                }) {
+                    Text("Manage")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(primaryBlue)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(primaryBlue.opacity(0.1))
+                        .cornerRadius(20)
+                }
             }
             .padding()
             .background(primaryBlue.opacity(0.1))
@@ -384,9 +426,21 @@ struct WalletView: View {
                     .frame(height: 8)
                 }
                 
-                Text("Spend $\(Int(bonus.target_spend - bonus.current_spend)) more by end date to qualify.")
-                    .font(.caption2)
-                    .foregroundColor(textSecondary)
+                HStack {
+                    Text("Spend $\(Int(max(0, bonus.target_spend - bonus.current_spend))) more to qualify.")
+                        .font(.caption2)
+                        .foregroundColor(textSecondary)
+                    
+                    Spacer()
+                    
+                    Text("Ends \(formattedDate(bonus.end_date))")
+                        .font(.system(size: 10, weight: .bold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(primaryBlue.opacity(0.2))
+                        .foregroundColor(primaryBlue)
+                        .cornerRadius(4)
+                }
             }
             .padding()
         }
@@ -400,8 +454,16 @@ struct WalletView: View {
     
     // Helper for date
     func formattedDate(_ dateStr: String) -> String {
-        // Simple formatter
-        return dateStr 
+        let inputFormatter = DateFormatter()
+        inputFormatter.dateFormat = "yyyy-MM-dd"
+        
+        if let date = inputFormatter.date(from: dateStr) {
+            let outputFormatter = DateFormatter()
+            outputFormatter.dateFormat = "MM-dd-yyyy"
+            return outputFormatter.string(from: date)
+        }
+        
+        return dateStr
     }
 }
 

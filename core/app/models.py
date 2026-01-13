@@ -44,6 +44,7 @@ class SignOnBonus(BaseModel):
     current_spend: float = 0.0
     target_spend: float = 0.0 # Added for progress bar
     end_date: str # Using string for easier JSON handling (ISO format YYYY-MM-DD)
+    last_updated: str | None = None # ISO format YYYY-MM-DD, tracks when bonus was last updated manually or via statement
 
 class UserCard(BaseModel):
     card_id: str

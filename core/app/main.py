@@ -272,6 +272,84 @@ def add_card_to_wallet(card: UserCard, current_user: dict = Depends(get_current_
     except HTTPException as e:
         raise e
 
+@app.patch("/me/cards/{card_id}/bonus")
+def update_card_bonus(card_id: str, bonus_update: dict, current_user: dict = Depends(get_current_user)):
+    """
+    Manually updates the sign-on bonus progress.
+    Expects JSON: {"current_spend": 123.45}
+    """
+    try:
+        uid = current_user['uid']
+        # 1. Get current card data
+        card_ref = auth.db.collection('users').document(uid).collection('cards').document(card_id)
+        doc = card_ref.get()
+        if not doc.exists:
+             raise HTTPException(status_code=404, detail="Card not found in wallet")
+             
+        data = doc.to_dict()
+        bonus = data.get('sign_on_bonus')
+        if not bonus:
+             raise HTTPException(status_code=404, detail="No active bonus for this card")
+             
+        # 2. Update fields
+        if 'current_spend' in bonus_update:
+            bonus['current_spend'] = float(bonus_update['current_spend'])
+            
+        # Update last_updated to now to simulate manual edit "most recent"
+        import datetime
+        bonus['last_updated'] = datetime.date.today().isoformat()
+        
+        # 3. Check completion (logic duplicative but necessary for manual trigger)
+        # If manual edit reaches goal, we should process it?
+        # User: "Have a way for the user to manually edit... If... reached... add it to the users total cashback"
+        # Since this is manual, let's apply the same logic.
+        
+        if bonus['current_spend'] >= bonus.get('target_spend', 0.0):
+             bonus_val = bonus.get('bonus_value', 0.0)
+             
+             # Add to user total
+             user_ref = auth.db.collection('users').document(uid)
+             user_ref.update({
+                 "total_cashback": auth.firestore.Increment(bonus_val)
+             })
+             
+             # Create reward record
+             import hashlib
+             reward_id = hashlib.md5(f"MANUAL_REWARD_{card_id}_{bonus['last_updated']}".encode()).hexdigest()
+             tx_ref = auth.db.collection('users').document(uid).collection('transactions').document(reward_id)
+             tx_ref.set({
+                 "date": bonus['last_updated'],
+                 "retailer": f"Reward: {data.get('name', 'Card')} Bonus (Manual)",
+                 "amount": 0.0,
+                 "cashback_earned": bonus_val,
+                 "card_name": data.get('name', 'Card'),
+                 "created_at": auth.firestore.SERVER_TIMESTAMP,
+                 "type": "reward"
+             })
+             
+             # Remove bonus
+             card_ref.update({"sign_on_bonus": auth.firestore.DELETE_FIELD})
+             return {"status": "success", "message": "Goal reached! Bonus awarded."}
+        
+        else:
+             card_ref.update({"sign_on_bonus": bonus})
+             return {"status": "success", "bonus": bonus}
+             
+    except Exception as e:
+        print(f"Error updating bonus: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/me/cards/{card_id}/bonus")
+def delete_card_bonus(card_id: str, current_user: dict = Depends(get_current_user)):
+    """Removes the sign-on bonus from a card manually."""
+    try:
+        uid = current_user['uid']
+        card_ref = auth.db.collection('users').document(uid).collection('cards').document(card_id)
+        card_ref.update({"sign_on_bonus": auth.firestore.DELETE_FIELD})
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
 @app.delete("/me/cards/{card_id}")
 def remove_card_from_wallet(card_id: str, current_user: dict = Depends(get_current_user)):
     """Removes a card from the user's wallet securely."""

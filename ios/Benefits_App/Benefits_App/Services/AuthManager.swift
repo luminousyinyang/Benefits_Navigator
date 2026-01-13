@@ -6,6 +6,7 @@ class AuthManager: ObservableObject {
     @Published var isOnboarded = false
     @Published var currentUserUID: String?
     @Published var userProfile: UserProfile?
+    @Published var isLoadingProfile = false
     @Published var userCards: [UserCard] = []
     
     // Keys for persistence
@@ -78,6 +79,7 @@ class AuthManager: ObservableObject {
         // Save state
         isLoggedIn = true
         currentUserUID = uid
+        isLoadingProfile = true // Start loading to prevent flash
         
         // Persist (APIService is already updated by login call, pull from there or just save what we have)
         // LoginView usually calls APIService.login which currently returns AuthToken but we only passed `token` string here?
@@ -97,6 +99,9 @@ class AuthManager: ObservableObject {
         
         Task {
             await refreshData()
+            DispatchQueue.main.async {
+                self.isLoadingProfile = false
+            }
         }
     }
     

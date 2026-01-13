@@ -258,7 +258,7 @@ struct AddCardSheet: View {
                                     .onSubmit {
                                         performSearch()
                                     }
-                                    .onChange(of: searchQuery) { newValue in
+                                    .onChange(of: searchQuery) { _, newValue in
                                         updateSuggestions(query: newValue)
                                     }
                                 
@@ -493,12 +493,18 @@ struct AddCardSheet: View {
             formatter.formatOptions = [.withFullDate] // YYYY-MM-DD
             let dateStr = formatter.string(from: bonusDeadline)
             
+            // If user spent > 0, assume it covers history up to today.
+            // If they spent 0, leave nil so backend scans all history.
+            let todayStr = formatter.string(from: Date())
+            let lastUpdated = spent > 0 ? todayStr : nil
+            
             userCard.sign_on_bonus = SignOnBonus(
                 bonus_value: amount,
                 bonus_type: bonusType,
                 current_spend: spent,
                 target_spend: target,
-                end_date: dateStr
+                end_date: dateStr,
+                last_updated: lastUpdated
             )
         }
         
