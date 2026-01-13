@@ -43,6 +43,12 @@ class APIService {
         self.tokenExpiryDate = expiry
     }
     
+    // Ensure token is valid before usage
+    func getValidToken() async -> String? {
+        await checkTokenExpiry()
+        return authToken
+    }
+    
     // MARK: - Auth
 
     func signup(email: String, password: String, firstName: String, lastName: String) async throws -> String {
@@ -127,13 +133,7 @@ class APIService {
             throw URLError(.badURL)
         }
 
-        var request = URLRequest(url: url)
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        if let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, _) = try await performRequest(url: url)
         return try JSONDecoder().decode(UserProfile.self, from: data)
     }
 
@@ -142,13 +142,7 @@ class APIService {
             throw URLError(.badURL)
         }
         
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        if let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        
-        let (_, response) = try await URLSession.shared.data(for: request)
+        let (_, response) = try await performRequest(url: url, method: "POST")
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
             throw URLError(.badServerResponse)
         }
@@ -163,12 +157,7 @@ class APIService {
             throw URLError(.badURL)
         }
         
-        var request = URLRequest(url: url)
-        if let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await performRequest(url: url)
         
         if let httpResponse = response as? HTTPURLResponse {
             if httpResponse.statusCode == 404 {
@@ -196,12 +185,7 @@ class APIService {
             throw URLError(.badURL)
         }
         
-        var request = URLRequest(url: url)
-        if let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, _) = try await performRequest(url: url)
         
         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let suggestions = json["suggestions"] as? [String] {
@@ -215,13 +199,7 @@ class APIService {
             throw URLError(.badURL)
         }
         
-        var request = URLRequest(url: url)
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        if let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, _) = try await performRequest(url: url)
         return try JSONDecoder().decode([UserCard].self, from: data)
     }
     
@@ -230,16 +208,9 @@ class APIService {
             throw URLError(.badURL)
         }
         
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
+        let jsonData = try JSONEncoder().encode(card)
+        let (_, response) = try await performRequest(url: url, method: "POST", body: jsonData)
         
-        request.httpBody = try JSONEncoder().encode(card)
-        
-        let (_, response) = try await URLSession.shared.data(for: request)
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
              throw URLError(.badServerResponse)
         }
@@ -375,7 +346,7 @@ struct AuthToken: Codable {
 // ... existing models ...
 
 struct UserProfile: Codable {
-    let email: String
+    let email: String?
     let first_name: String
     let last_name: String
     let onboarded: Bool?

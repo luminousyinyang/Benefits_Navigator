@@ -98,7 +98,7 @@ struct SettingsView: View {
             if let user = authManager.userProfile {
                 firstName = user.first_name
                 lastName = user.last_name
-                email = user.email
+                email = user.email ?? ""
             }
         }
     }

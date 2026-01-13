@@ -40,18 +40,11 @@ struct MainTabView: View {
                 }
                 .tag(1)
             
-            // Placeholder for Discover
-            VStack {
-                Text("Discover")
-                    .font(.title)
-                    .foregroundColor(.white)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(backgroundDark)
-            .tabItem {
-                Label("Discover", systemImage: "safari.fill")
-            }
-            .tag(2)
+            TransactionsView()
+                .tabItem {
+                    Label("Transactions", systemImage: "doc.text.magnifyingglass")
+                }
+                .tag(2)
             
             ProfileView(showSettings: .constant(false))
                 .tabItem {
