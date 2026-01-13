@@ -25,21 +25,26 @@ class TransactionService: ObservableObject {
     
     @Published var transactions: [Transaction] = []
     
-    // In-memory cache
-    private var transactionCache: [Transaction] = []
+    // In-memory array IS the source of truth, backed by UserDefaults
+    // private var transactionCache: [Transaction] = [] // Removed, using UserDefaults instead
     
     // Adjust to your actual backend URL if different
     // Using the same base URL logic as APIService might be cleaner, but hardcoding for now as per previous
     private let baseURL = "http://10.126.172.26:8000" 
     
+    // Keys
+    private let cacheKey = "cached_transactions"
+    
     // MARK: - API Calls
     
+    private init() {
+        loadFromCache()
+    }
+    
     func fetchTransactions(forceRefresh: Bool = false) async throws {
-        // Return from cache if available and not forced
-        if !forceRefresh && !transactionCache.isEmpty {
-            DispatchQueue.main.async {
-                self.transactions = self.transactionCache
-            }
+        // Return from memory cache if available and not forced
+        if !forceRefresh && !transactions.isEmpty {
+            // No need to dispatch, already set from init/memory
             return
         }
         
@@ -62,9 +67,9 @@ class TransactionService: ObservableObject {
         
         let decodedTransactions = try JSONDecoder().decode([Transaction].self, from: data)
         
-        DispatchQueue.main.async {
-            self.transactionCache = decodedTransactions
+        await MainActor.run {
             self.transactions = decodedTransactions
+            self.saveToCache(decodedTransactions)
         }
     }
     
@@ -113,10 +118,23 @@ class TransactionService: ObservableObject {
     
     // MARK: - Cache Management
     
+    private func saveToCache(_ transactions: [Transaction]) {
+        if let encoded = try? JSONEncoder().encode(transactions) {
+            UserDefaults.standard.set(encoded, forKey: cacheKey)
+        }
+    }
+    
+    private func loadFromCache() {
+        if let data = UserDefaults.standard.data(forKey: cacheKey),
+           let decoded = try? JSONDecoder().decode([Transaction].self, from: data) {
+            self.transactions = decoded
+        }
+    }
+    
     func clearCache() {
         DispatchQueue.main.async {
-            self.transactionCache = []
             self.transactions = []
+            UserDefaults.standard.removeObject(forKey: self.cacheKey)
         }
     }
 }

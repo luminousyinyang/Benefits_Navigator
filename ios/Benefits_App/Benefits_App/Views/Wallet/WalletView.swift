@@ -13,7 +13,7 @@ struct WalletView: View {
     @State private var selectedCategory: WalletCategory = .insights
     
     enum WalletCategory {
-        case insights, offers, perks
+        case insights, perks
     }
     
     var body: some View {
@@ -39,12 +39,8 @@ struct WalletView: View {
                                 geminiInsightsSection
                                     .id(WalletCategory.insights)
                                 
-                                // Active Offers
-                                activeOffersSection
-                                    .id(WalletCategory.offers)
-                                
-                                // Standard Perks
-                                standardPerksSection
+                                // Benefits (Bonus + Standard)
+                                cardBenefitsSection
                                     .id(WalletCategory.perks)
                             }
                             .padding(.horizontal)
@@ -78,9 +74,9 @@ struct WalletView: View {
         }
     }
     
+
     func fetchCards() {
-        // guard let uid = authManager.currentUserUID else { return } // No longer needed for param
-        // Check if logged in via authManager if needed, but APIService handles token
+
         if !authManager.isLoggedIn { return }
         
         Task {
@@ -95,6 +91,7 @@ struct WalletView: View {
     }
     
     private var headerView: some View {
+
         HStack {
             HStack(spacing: 12) {
                 ZStack(alignment: .bottomTrailing) {
@@ -131,6 +128,7 @@ struct WalletView: View {
     }
     
     private var cardCarousel: some View {
+
         TabView(selection: $selectedCardId) {
             if authManager.userCards.isEmpty {
                  // Empty state
@@ -197,12 +195,11 @@ struct WalletView: View {
         .tabViewStyle(.page(indexDisplayMode: .never))
         .frame(height: 280) // Constrain height for TabView
     }
-    
+
     private func tabSection(proxy: ScrollViewProxy) -> some View {
         HStack(spacing: 0) {
             tabItem(title: "Insights", category: .insights, icon: "sparkles", proxy: proxy)
-            tabItem(title: "Offers", category: .offers, proxy: proxy)
-            tabItem(title: "Perks", category: .perks, proxy: proxy)
+            tabItem(title: "Benefits", category: .perks, proxy: proxy)
         }
         .padding(.horizontal)
         .overlay(
@@ -297,92 +294,114 @@ struct WalletView: View {
         }
     }
     
-    private var activeOffersSection: some View {
+    private var cardBenefitsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Active Offers")
-                .font(.headline)
-                .foregroundColor(.white)
-            
-            // Uber Eats Card
-            VStack(spacing: 0) {
-                ZStack(alignment: .bottomLeading) {
-                    Rectangle()
-                        .fill(Color.black.opacity(0.3))
-                        .frame(height: 100)
-                    
-                    HStack {
-                        Image(systemName: "bag.fill")
-                            .foregroundColor(.white)
-                        Text("Uber Eats")
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                        Spacer()
-                        Text("EXPIRES IN 3 DAYS")
-                            .font(.system(size: 8, weight: .bold))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.red)
-                            .foregroundColor(.white)
-                            .cornerRadius(20)
-                    }
-                    .padding()
-                }
-                
-                HStack {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Free Delivery + 5% Back")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(.white)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(Color.white.opacity(0.1)).frame(height: 6)
-                                Capsule().fill(Color.green).frame(width: 120, height: 6)
-                            }
-                            Text("$15/$20 Spend goal met")
-                                .font(.system(size: 10))
-                                .foregroundColor(textSecondary)
-                        }
-                    }
-                    Spacer()
-                    Button("Activate") {}
-                        .font(.system(size: 14, weight: .bold))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(primaryBlue)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                }
-                .padding()
-                .background(cardBackground)
-            }
-            .cornerRadius(16)
-        }
-    }
-    
-    private var standardPerksSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Standard Perks")
+            Text("Card Benefits")
                 .font(.headline)
                 .foregroundColor(.white)
             
             VStack(spacing: 12) {
                 if let selectedId = selectedCardId,
-                   let card = authManager.userCards.first(where: { ($0.card_id ?? $0.id) == selectedId }),
-                   let benefits = card.benefits, !benefits.isEmpty {
+                   let card = authManager.userCards.first(where: { ($0.card_id ?? $0.id) == selectedId }) {
                     
-                    // Group by category if we wanted, but for now just list them
-                    ForEach(benefits, id: \.title) { benefit in
-                        BenefitRowView(benefit: benefit)
+                    // --- Sign Up Bonus Section ---
+                    if let bonus = card.sign_on_bonus {
+                        signUpBonusView(bonus: bonus)
+                            .padding(.bottom, 8)
+                    }
+                    
+                    // --- Standard Benefits ---
+                    if let benefits = card.benefits, !benefits.isEmpty {
+                        ForEach(benefits, id: \.title) { benefit in
+                            BenefitRowView(benefit: benefit)
+                        }
+                    } else {
+                        Text("No other benefits listed.")
+                            .font(.subheadline)
+                            .foregroundColor(textSecondary)
+                            .italic()
+                            .padding(.top, 8)
                     }
                     
                 } else {
-                    Text("Select a card to view perks")
+                    Text("Select a card to view benefits")
                         .foregroundColor(textSecondary)
                         .italic()
                 }
             }
         }
+    }
+    
+    private func signUpBonusView(bonus: SignOnBonus) -> some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Image(systemName: "gift.fill")
+                    .foregroundColor(primaryBlue)
+                Text("Sign Up Bonus")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                Spacer()
+                Text("Ends \(formattedDate(bonus.end_date))")
+                    .font(.system(size: 10, weight: .bold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(primaryBlue.opacity(0.2))
+                    .foregroundColor(primaryBlue)
+                    .cornerRadius(4)
+            }
+            .padding()
+            .background(primaryBlue.opacity(0.1))
+            
+            // Content
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Earn \(Int(bonus.bonus_value)) \(bonus.bonus_type)")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("$\(Int(bonus.current_spend)) spent")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                        Spacer()
+                        Text("$\(Int(bonus.target_spend)) goal")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(height: 8)
+                            
+                            Capsule()
+                                .fill(LinearGradient(colors: [primaryBlue, secondaryBlue], startPoint: .leading, endPoint: .trailing))
+                                .frame(width: geo.size.width * CGFloat(min(bonus.current_spend / bonus.target_spend, 1.0)), height: 8)
+                        }
+                    }
+                    .frame(height: 8)
+                }
+                
+                Text("Spend $\(Int(bonus.target_spend - bonus.current_spend)) more by end date to qualify.")
+                    .font(.caption2)
+                    .foregroundColor(textSecondary)
+            }
+            .padding()
+        }
+        .background(cardBackground)
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(primaryBlue.opacity(0.3), lineWidth: 1)
+        )
+    }
+    
+    // Helper for date
+    func formattedDate(_ dateStr: String) -> String {
+        // Simple formatter
+        return dateStr 
     }
 }
 
