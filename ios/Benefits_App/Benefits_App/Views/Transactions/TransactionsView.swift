@@ -88,10 +88,11 @@ struct TransactionsView: View {
                             .padding(.bottom, 24)
                         }
                         .refreshable {
-                            await loadData()
+                            await loadData(forceRefresh: true)
                         }
                     }
                 }
+                .blur(radius: isProcessing ? 5 : 0) // Blur content when processing
             }
             .disabled(isProcessing)
             .fileImporter(
@@ -112,10 +113,10 @@ struct TransactionsView: View {
         }
     }
     
-    private func loadData() async {
+    private func loadData(forceRefresh: Bool = false) async {
         // No longer need to fetch token here, Service handles it
         do {
-            try await transactionService.fetchTransactions()
+            try await transactionService.fetchTransactions(forceRefresh: forceRefresh)
         } catch {
             print("Error fetching transactions: \(error)")
         }

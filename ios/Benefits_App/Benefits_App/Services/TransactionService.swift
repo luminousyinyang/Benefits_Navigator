@@ -34,9 +34,9 @@ class TransactionService: ObservableObject {
     
     // MARK: - API Calls
     
-    func fetchTransactions() async throws {
-        // Return from cache if available
-        if !transactionCache.isEmpty {
+    func fetchTransactions(forceRefresh: Bool = false) async throws {
+        // Return from cache if available and not forced
+        if !forceRefresh && !transactionCache.isEmpty {
             DispatchQueue.main.async {
                 self.transactions = self.transactionCache
             }
@@ -78,7 +78,7 @@ class TransactionService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 120 // Increase timeout to 2 minutes for Gemini processing
+        request.timeoutInterval = 240 // Increase timeout to 4 minutes for Gemini processing
         
         let boundary = UUID().uuidString
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -107,7 +107,8 @@ class TransactionService: ObservableObject {
         }
         
         // Invalidate cache so next fetch gets new data
-        clearCache() 
+        // Refresh transactions to update the UI immediately
+        try? await fetchTransactions(forceRefresh: true) 
     }
     
     // MARK: - Cache Management

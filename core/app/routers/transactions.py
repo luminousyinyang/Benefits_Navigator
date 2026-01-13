@@ -53,23 +53,68 @@ async def upload_statement(
         batch = db.batch()
         transactions_ref = db.collection('users').document(uid).collection('transactions')
         
+        import hashlib
+        
         saved_count = 0
         for tx in transactions:
-            # Create a new document ref (auto-ID)
-            doc_ref = transactions_ref.document()
+            # Create a deterministic ID to prevent duplicates
+            # ID = Hash(date + retailer + amount)
+            # You could add card_name if you distinguish overlapping transactions on different cards
+            unique_str = f"{tx.get('date')}_{tx.get('retailer')}_{tx.get('amount')}"
+            tx_id = hashlib.md5(unique_str.encode()).hexdigest()
+            
+            # Create a document ref with the deterministic ID
+            doc_ref = transactions_ref.document(tx_id)
             
             # Prepare data for DB (use copy to avoid mutating response with non-serializable Sentinel)
             tx_db = tx.copy()
-            tx_db['created_at'] = firestore.SERVER_TIMESTAMP
+            # Only set created_at if it's new, but MERGE=TRUE handles updates.
+            # However, if we want to preserve original created_at, we might need a read. 
+            # For simplicity, we just update/overwrite.
+            tx_db['updated_at'] = firestore.SERVER_TIMESTAMP
             tx_db['source_file'] = file.filename
             
-            batch.set(doc_ref, tx_db)
+            # Use SET with merge=True to update existing or create new
+            batch.set(doc_ref, tx_db, merge=True)
             saved_count += 1
             
             # Add serializable metadata to response if desired
             tx['source_file'] = file.filename
             
         batch.commit()
+        
+        # --- STATS CALCULATION ---
+        try:
+             # Query ALL transactions to re-calculate stats
+             all_tx_docs = transactions_ref.stream()
+             
+             total_cashback = 0.0
+             retailer_counts = {}
+             
+             for doc in all_tx_docs:
+                 data = doc.to_dict()
+                 # Cashback
+                 total_cashback += data.get('cashback_earned', 0.0)
+                 
+                 # Retailer Frequency
+                 retailer = data.get('retailer', 'Unknown')
+                 retailer_counts[retailer] = retailer_counts.get(retailer, 0) + 1
+                 
+             # Determine Top Retailer
+             top_retailer = "Must do more shopping!"
+             if retailer_counts:
+                 top_retailer = max(retailer_counts, key=retailer_counts.get)
+                 
+             # Update User Profile
+             user_ref = db.collection('users').document(uid)
+             user_ref.update({
+                 "total_cashback": total_cashback,
+                 "top_retailer": top_retailer
+             })
+             
+        except Exception as stats_error:
+            print(f"Stats Calculation Error: {stats_error}")
+            # Non-blocking, continue
         
         return {
             "message": "Statement processed successfully",

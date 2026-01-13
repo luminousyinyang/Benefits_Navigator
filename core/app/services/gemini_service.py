@@ -24,13 +24,14 @@ class GeminiService:
             Analyze this credit card statement PDF.
             Extract ALL individual transactions from the statement period.
             
-            For each transaction, return a JSON object with:
-            - "date": "YYYY-MM-DD" (The transaction date)
-            - "retailer": "String" (The merchant name, cleaned up if possible)
-            - "amount": Number (The transaction amount, positive for purchases, negative for credits/payments)
-            - "card_name": "String" (The specific card product name, e.g., "Chase Sapphire Reserve", "Amex Gold", "Apple Card". Infer from the statement header or footer if not on every line. If unknown, use "Credit Card")
-            
-            Calculate "cashback_earned" based on the retailer category (assume 1% base if unknown, 3% for dining, 5% for travel).
+            1. **IDENTIFY CARD**: First, identify the exact credit card name from the statement (e.g., "Chase Sapphire Reserve", "Amex Gold").
+            2. **RESEARCH BENEFITS**: Use Google Search to find the OFFICIAL reward structure for this specific card (e.g. "Chase Sapphire Reserve current points multipliers"). Look for categories like Dining, Travel, Grocery, etc.
+            3. **EXTRACT TRANSACTIONS**: For each transaction:
+               - "date": "YYYY-MM-DD" (The transaction date)
+               - "retailer": "String" (CLEAN THE RETAILER NAME. e.g. "CHIPOTLE MEX GR ONLINE" -> "Chipotle", "UBER *RIDE" -> "Uber". If the name is already clean or ambiguous, keep it.)
+               - "amount": Number (The transaction amount, positive for purchases, negative for credits/payments).
+               - "card_name": "String" (The specific card product name, e.g., "Chase Sapphire Reserve", "Amex Gold". Infer from the statement content. If unknown, use "Credit Card")
+               - "cashback_earned": Number. **CRITICAL**: Calculate this using the RESEARCHED reward structure if the cashback per transaction isn't explicitly stated in the statement. Determine the retailer's category (e.g. Chipotle = Dining) and apply the correct multiplier (e.g. 3x or 3%). If the category is 1x/1%, calculate 1%.
             
             Return the result as a strictly formatted JSON object with a "transactions" key containing the list.
             Example:
@@ -63,18 +64,37 @@ class GeminiService:
                     )
                 ],
                 config=types.GenerateContentConfig(
+                    tools=[types.Tool(google_search=types.GoogleSearch())],
                     response_mime_type='application/json'
                 )
             )
 
             # Parse Response
             text = response.text.strip()
-            # Handle markdown code blocks if present
-            if text.startswith("```json"): text = text[7:]
-            if text.endswith("```"): text = text[:-3]
             
-            data = json.loads(text)
-            return data.get("transactions", [])
+            # Robust JSON extraction: Find the first '{' and last '}'
+            import re
+            
+            # Try to find a JSON code block first
+            match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
+            if match:
+                json_str = match.group(1)
+            else:
+                # Fallback: Find outermost braces
+                start = text.find('{')
+                end = text.rfind('}') + 1
+                if start != -1 and end != 0:
+                    json_str = text[start:end]
+                else:
+                     # Last resort: just try the whole text
+                    json_str = text
+
+            try:
+                data = json.loads(json_str)
+                return data.get("transactions", [])
+            except json.JSONDecodeError:
+                print(f"❌ JSON Decode Error. Raw text: {text}")
+                return []
 
         except Exception as e:
             print(f"❌ Gemini Processing Error: {e}")

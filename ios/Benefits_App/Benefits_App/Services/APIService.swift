@@ -350,6 +350,8 @@ struct UserProfile: Codable {
     let first_name: String
     let last_name: String
     let onboarded: Bool?
+    let total_cashback: Double?
+    let top_retailer: String?
 }
 
 struct Card: Codable, Identifiable {

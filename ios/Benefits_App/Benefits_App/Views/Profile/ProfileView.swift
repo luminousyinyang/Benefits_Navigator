@@ -2,13 +2,30 @@ import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject var authManager: AuthManager
+    @StateObject private var transactionService = TransactionService.shared
     
     // Custom Colors
     let backgroundDark = Color(red: 16/255, green: 24/255, blue: 34/255)
     let cardBackground = Color(red: 28/255, green: 32/255, blue: 39/255)
     let primaryBlue = Color(red: 19/255, green: 109/255, blue: 236/255)
     
-    @Binding var showSettings: Bool // Control navigation to settings if used as sheet or nav link depending on context
+    @Binding var showSettings: Bool
+    
+
+    
+    // Computed Properties for Display
+    var totalCashback: String {
+        let val = authManager.userProfile?.total_cashback ?? 0.0
+        return String(format: "$%.2f", val)
+    }
+    
+    var topRetailer: String {
+        return authManager.userProfile?.top_retailer ?? "N/A"
+    }
+    
+    var recentTransactions: [Transaction] {
+        return Array(transactionService.transactions.prefix(3))
+    }
     
     var body: some View {
         NavigationStack {
@@ -64,32 +81,57 @@ struct ProfileView: View {
                             
                             // MARK: - Stats Grid
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                                StatCard(title: "Benefits Earned", value: "$428", icon: "dollarsign.circle.fill", color: .green)
-                                StatCard(title: "Cards Active", value: "3", icon: "creditcard.fill", color: .blue)
-                                StatCard(title: "Credit Score", value: "780", icon: "chart.line.uptrend.xyaxis", color: .orange)
+                                StatCard(title: "Benefits Earned", value: totalCashback, icon: "dollarsign.circle.fill", color: .green)
+                                StatCard(title: "Cards Active", value: "\(authManager.userCards.count)", icon: "creditcard.fill", color: .blue)
+                                StatCard(title: "Top Merchant", value: topRetailer, icon: "cart.fill", color: .orange)
                                 StatCard(title: "Next Reward", value: "2 Days", icon: "gift.fill", color: .purple)
                             }
                             .padding(.horizontal, 24)
                             
-                            // MARK: - Recent Activity Placeholder
-                            VStack(alignment: .leading, spacing: 16) {
-                                Text("Recent Activity")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.white)
+                            // MARK: - Recent Activity
+                            if !recentTransactions.isEmpty {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    Text("Recent Activity")
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 24)
+                                    
+                                    VStack(spacing: 12) {
+                                        ForEach(recentTransactions) { tx in
+                                            ActivityRow(
+                                                title: tx.retailer,
+                                                subtitle: "\(tx.card_name ?? "Credit Card")",
+                                                amount: tx.formattedCashback,
+                                                date: tx.date
+                                            )
+                                        }
+                                    }
                                     .padding(.horizontal, 24)
-                                
-                                VStack(spacing: 12) {
-                                    ActivityRow(title: "Grocery Shopping", subtitle: "Amex Gold • 4x Points", amount: "+$4.20", date: "Today")
-                                    ActivityRow(title: "Uber Ride", subtitle: "Chase Sapphire • 3x Points", amount: "+$2.15", date: "Yesterday")
-                                    ActivityRow(title: "Netflix Subscription", subtitle: "Amex Platinum • Credit", amount: "$0.00", date: "Jan 10")
                                 }
-                                .padding(.horizontal, 24)
                             }
                         }
                         .padding(.bottom, 40)
                     }
+                    .refreshable {
+                        await loadData(forceRefresh: true)
+                    }
                 }
             }
+            .task {
+                await loadData()
+            }
+        }
+    }
+    
+    func loadData(forceRefresh: Bool = false) async {
+        // Fetch fresh profile and cards for stats
+        await authManager.refreshData()
+        
+        // Fetch transactions for list
+        do {
+            try await transactionService.fetchTransactions(forceRefresh: forceRefresh)
+        } catch {
+            print("Profile fetch error: \(error)")
         }
     }
 }
@@ -118,6 +160,8 @@ struct StatCard: View {
                 Text(value)
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(.white)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
                 Text(title)
                     .font(.system(size: 12))
                     .foregroundColor(.gray)
@@ -148,9 +192,11 @@ struct ActivityRow: View {
                 Text(title)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white)
+                    .lineLimit(1)
                 Text(subtitle)
                     .font(.system(size: 12))
                     .foregroundColor(.gray)
+                    .lineLimit(1)
             }
             
             Spacer()

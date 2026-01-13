@@ -23,6 +23,8 @@ class UserProfile(BaseModel):
     first_name: str
     last_name: str
     onboarded: bool = False
+    total_cashback: float = 0.0
+    top_retailer: str = "Must do more shopping!"
 
 class Benefit(BaseModel):
     category: str
