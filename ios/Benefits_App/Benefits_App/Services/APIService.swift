@@ -148,6 +148,31 @@ class APIService {
         }
     }
     
+    func updateProfile(firstName: String, lastName: String, email: String) async throws -> UserProfile {
+         guard let url = URL(string: "\(baseURL)/me") else {
+             throw URLError(.badURL)
+         }
+         
+         let body: [String: Any] = [
+             "first_name": firstName,
+             "last_name": lastName,
+             "email": email
+         ]
+         
+         let jsonData = try JSONSerialization.data(withJSONObject: body)
+         let (data, response) = try await performRequest(url: url, method: "PATCH", body: jsonData)
+         
+         if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
+             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let detail = json["detail"] as? String {
+                 throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: detail])
+             }
+             throw URLError(.badServerResponse)
+         }
+         
+         return try JSONDecoder().decode(UserProfile.self, from: data)
+    }
+    
     // MARK: - Cards
     
     func searchCard(query: String) async throws -> Card {

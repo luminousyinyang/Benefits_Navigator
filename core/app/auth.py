@@ -76,6 +76,48 @@ def get_user_profile(uid: str):
          raise HTTPException(status_code=500, detail=str(e))
 
 
+def update_user_profile(uid: str, updates: dict):
+    """
+    Updates user profile in Firestore and Auth (if email changes).
+    Supported updates: first_name, last_name, email.
+    """
+    try:
+        firestore_updates = {}
+        
+        # 1. Handle Auth Updates (Email)
+        if 'email' in updates:
+            new_email = updates['email']
+            # Update Firebase Auth (this throws if email is taken or invalid)
+            auth.update_user(uid, email=new_email)
+            firestore_updates['email'] = new_email
+            
+        # 2. Handle Firestore Updates
+        if 'first_name' in updates:
+            firestore_updates['first_name'] = updates['first_name']
+        if 'last_name' in updates:
+            firestore_updates['last_name'] = updates['last_name']
+            
+        if firestore_updates:
+            # Add updated timestamp
+            firestore_updates['updated_at'] = firestore.SERVER_TIMESTAMP
+            db.collection("users").document(uid).update(firestore_updates)
+            
+        return get_user_profile(uid)
+
+    except auth.EmailAlreadyExistsError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    except ValueError as e:
+         raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=str(e))
+
+
 def verify_password(email: str, password: str):
     """
     Logs in a user via Firebase REST API to get an ID token.

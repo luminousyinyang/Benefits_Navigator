@@ -135,6 +135,27 @@ class AuthManager: ObservableObject {
         }
     }
     
+    func updateProfile(firstName: String, lastName: String, email: String) async throws {
+        // Check if email is changing
+        let isEmailChanging = self.userProfile?.email != email
+        
+        // Perform update
+        let updatedProfile = try await APIService.shared.updateProfile(firstName: firstName, lastName: lastName, email: email)
+        
+        DispatchQueue.main.async {
+            self.userProfile = updatedProfile
+            // Update cache
+            if let encodedProfile = try? JSONEncoder().encode(updatedProfile) {
+                UserDefaults.standard.set(encodedProfile, forKey: self.kCachedProfile)
+            }
+            
+            // If email changed, force logout logic (but maybe delay slightly or let the UI handle the transition)
+            if isEmailChanging {
+                self.logout()
+            }
+        }
+    }
+    
     func logout() {
         // Clear state
         isLoggedIn = false

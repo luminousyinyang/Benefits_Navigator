@@ -12,6 +12,37 @@ struct SettingsView: View {
     @State private var firstName: String = ""
     @State private var lastName: String = ""
     @State private var email: String = ""
+    @State private var isLoading = false
+    @State private var alertMessage = ""
+    @State private var showAlert = false
+    
+    func saveChanges() {
+        guard !firstName.isEmpty, !lastName.isEmpty, !email.isEmpty else {
+            alertMessage = "Please fill in all fields."
+            showAlert = true
+            return
+        }
+        
+        let isEmailChanging = (authManager.userProfile?.email != email)
+        
+        isLoading = true
+        Task {
+            do {
+                try await authManager.updateProfile(firstName: firstName, lastName: lastName, email: email)
+                
+                if isEmailChanging {
+                    alertMessage = "Email updated successfully. Please sign in again."
+                } else {
+                    alertMessage = "Profile updated successfully."
+                }
+                showAlert = true
+            } catch {
+                alertMessage = "Error: \(error.localizedDescription)"
+                showAlert = true
+            }
+            isLoading = false
+        }
+    }
     
     var body: some View {
         ZStack {
@@ -61,16 +92,21 @@ struct SettingsView: View {
                         }
                         
                         // MARK: - Actions
-                        Button(action: {
-                            // TODO: Implement update logic
-                        }) {
-                            Text("Save Changes")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.white)
+                        if isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: primaryBlue))
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(primaryBlue)
-                                .cornerRadius(12)
+                        } else {
+                            Button(action: saveChanges) {
+                                Text("Save Changes")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(primaryBlue)
+                                    .cornerRadius(12)
+                            }
                         }
                         
                         Button(action: {
@@ -100,6 +136,9 @@ struct SettingsView: View {
                 lastName = user.last_name
                 email = user.email ?? ""
             }
+        }
+        .alert(isPresented: $showAlert) {
+            Alert(title: Text("Profile Update"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
     }
 }

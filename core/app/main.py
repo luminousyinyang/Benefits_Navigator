@@ -118,6 +118,27 @@ def read_users_me(current_user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.patch("/me", response_model=dict)
+def update_user_me(updates: dict, current_user: dict = Depends(get_current_user)):
+    """
+    Updates current user profile (first_name, last_name, email).
+    """
+    try:
+        uid = current_user['uid']
+        # Filter allowed keys
+        allowed_keys = {'first_name', 'last_name', 'email'}
+        filtered_updates = {k: v for k, v in updates.items() if k in allowed_keys}
+        
+        if not filtered_updates:
+            raise HTTPException(status_code=400, detail="No valid fields to update")
+            
+        updated_profile = auth.update_user_profile(uid, filtered_updates)
+        return updated_profile
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/me/onboarding")
 def complete_onboarding(current_user: dict = Depends(get_current_user)):
     """Sets user's onboarded status to True."""
