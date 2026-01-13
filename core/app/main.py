@@ -126,7 +126,7 @@ def update_user_me(updates: dict, current_user: dict = Depends(get_current_user)
     try:
         uid = current_user['uid']
         # Filter allowed keys
-        allowed_keys = {'first_name', 'last_name', 'email'}
+        allowed_keys = {'first_name', 'last_name', 'email', 'goals_preferences', 'financial_details'}
         filtered_updates = {k: v for k, v in updates.items() if k in allowed_keys}
         
         if not filtered_updates:
@@ -226,9 +226,16 @@ def search_card(query: str, current_user: dict = Depends(get_current_user)):
         IMPORTANT RULES:
         1. 📄 SOURCE OF TRUTH: You MUST try to find the "Guide to Benefits" PDF or official landing page. Do not rely on third-party blogs if possible.
         2. 🚫 EXCLUDE GENERIC/FINANCIAL FEATURES: Exclude "0% APR", "Annual Fees", "Balance Transfers", "Monthly Installments", "Family/Authorized User" features, "$0 Liability", "ID Theft Protection", and "Presale Tickets". These are standard or costs.
-        3. 💰 FOCUS ON VALUE: Prioritize benefits that save money (Credits, Reimbursements, Insurance, Status, Price Protection, Cash Back tiers).
+        3. 💰 COMPREHENSIVE REWARDS STRUCTURE: You MUST list EVERY SINGLE earning rate. Do not summarize.
+           - Include specific multipliers (e.g. "2x miles on Restaurants", "2x miles on Hotel Stays").
+           - Include the base rate (e.g. "1x miles on all other purchases").
+           - Include any tier bonuses.
+           - MISS NOTHING. Errors of omission are unacceptable.
         4. 🛡️ MANDATORY CHECK: You MUST explicitly look for "Extended Warranty", "Purchase Protection", and "Return Protection". If the card has them, INCLUDE THEM. If not, only then omit them. Do not miss them.
-        5. 🔗 CONSOLIDATE: If a benefit is split (e.g. "3% at Apple" and "3% at Partners"), COMBINE them into one single benefit (e.g. "3% Daily Cash at Apple & Select Partners").
+        5. 🔗 CONSOLIDATE BY RATE: Group all categories with the SAME earning rate into one single line.
+           - BAD: "2x on Dining", "2x on Travel" (Separate lines)
+           - GOOD: "2x Miles on Dining & Travel" (Combined)
+           - Combine partner offers if they share a rate.
         6. 📅 VERIFY DATE VALIDITY: Double-check that detailed partners (e.g. Panera, T-Mobile) are STILL valid for the current date. Do not list expired partners.
         7. 📝 BE SPECIFIC: List specific active retailers and coverage amounts in 'details'.
         8. 🔎 GO DEEP: Find mostly purchase perks and insurance.
@@ -401,12 +408,22 @@ def get_recommendation(request: RecommendationRequest, current_user: dict = Depe
             cards_str += f"- ID: {card.card_id}, Name: {card.name}, Brand: {card.brand}\n  Benefits: {benefits_str}{bonus_str}\n"
 
         priority_text = "PRIORITIZE EXTENDED WARRANTY and PURCHASE PROTECTION above all else." if request.prioritize_warranty else "Maximizing Cash Back/Points Value is the ONLY goal."
+        
+        # User Context
+        user_context = ""
+        user_profile = auth.get_user_profile(current_user['uid'])
+        if user_profile.get('goals_preferences'):
+             user_context += f"\nUSER GOALS: {user_profile['goals_preferences']}"
+        if user_profile.get('financial_details'):
+             user_context += f"\nFINANCIAL CONTEXT: {user_profile['financial_details']}"
 
         prompt = f"""
         Act as an expert financial advisor. The user is shopping at: "{request.store_name}".
         
         GOAL: Recommend the SINGLE BEST credit card from the list below to use for this purchase.
         STRATEGY: {priority_text}
+        
+        ADDITIONAL CONTEXT (IMPORTANT):{user_context}
         
         USER'S CARDS:
         {cards_str}
@@ -416,12 +433,13 @@ def get_recommendation(request: RecommendationRequest, current_user: dict = Depe
         2. 🧠 ANALYZE: Compare the user's cards against this category.
            - If Strategy is WARRANTY: Look for "Extended Warranty", "Purchase Protection". A card with these WINS over a card with high points but no protection.
            - If Strategy is VALUE: Look for the highest multiplier (e.g. 4x > 3x > 2% > 1.5%).
+           - **APPLY CONTEXT**: If the user has specific goals (e.g. "earning miles") or financial constraints (e.g. "needs low APR"), factor this heavily into the decision.
         3. 🧮 CALCULATE: Estimate the return value (e.g. "4% back", "$15 value").
         
         OUTPUT JSON:
         {{
             "best_card_id": "Exact ID from list",
-            "reasoning": ["Reason 1", "Reason 2"],
+            "reasoning": ["Reason 1", "Reason 2", "How it fits user goals"],
             "estimated_return": "e.g. '4% Cash Back' or 'Extended Warranty Included'",
             "runner_up_id": "Optional ID of 2nd best",
             "runner_up_reasoning": ["Why it's second"],

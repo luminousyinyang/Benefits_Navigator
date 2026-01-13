@@ -365,6 +365,8 @@ struct HeroCardView: View {
                         Text(returnAmount)
                             .font(.system(size: 42, weight: .heavy))
                             .foregroundColor(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.4)
                     }
                     
                     // Gemini AI Pill

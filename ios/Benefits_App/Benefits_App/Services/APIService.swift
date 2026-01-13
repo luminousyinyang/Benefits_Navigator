@@ -148,16 +148,19 @@ class APIService {
         }
     }
     
-    func updateProfile(firstName: String, lastName: String, email: String) async throws -> UserProfile {
+    func updateProfile(firstName: String, lastName: String, email: String, goalsPreferences: String? = nil, financialDetails: String? = nil) async throws -> UserProfile {
          guard let url = URL(string: "\(baseURL)/me") else {
              throw URLError(.badURL)
          }
          
-         let body: [String: Any] = [
+         var body: [String: Any] = [
              "first_name": firstName,
              "last_name": lastName,
              "email": email
          ]
+         
+         if let goals = goalsPreferences { body["goals_preferences"] = goals }
+         if let financial = financialDetails { body["financial_details"] = financial }
          
          let jsonData = try JSONSerialization.data(withJSONObject: body)
          let (data, response) = try await performRequest(url: url, method: "PATCH", body: jsonData)
@@ -285,10 +288,12 @@ class APIService {
             user_cards: userCards
         )
         
+        
         let jsonData = try JSONEncoder().encode(body)
         
         // Use performRequest to handle token refresh and auth headers automatically
-        let (data, response) = try await performRequest(url: url, method: "POST", body: jsonData)
+        // Increased timeout to 480s for Gemini AI processing
+        let (data, response) = try await performRequest(url: url, method: "POST", body: jsonData, timeout: 480)
         
         if let str = String(data: data, encoding: .utf8) {
             print("RAW RECOMMENDATION JSON: \(str)")
@@ -307,11 +312,11 @@ class APIService {
     
     // MARK: - Internal Helper
     
-    private func performRequest(url: URL, method: String = "GET", body: Data? = nil) async throws -> (Data, URLResponse) {
+    private func performRequest(url: URL, method: String = "GET", body: Data? = nil, timeout: TimeInterval = 60) async throws -> (Data, URLResponse) {
         // check expiry
         await checkTokenExpiry()
         
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: timeout)
         request.httpMethod = method
         if let body = body {
             request.httpBody = body
@@ -328,7 +333,7 @@ class APIService {
              // Second chance: Try to refresh if we haven't already
              print("401 received. Attempting refresh...")
              if await refreshToken() {
-                 return try await performRequest(url: url, method: method, body: body)
+                 return try await performRequest(url: url, method: method, body: body, timeout: timeout)
              }
         }
         
@@ -398,6 +403,8 @@ struct UserProfile: Codable {
     let onboarded: Bool?
     let total_cashback: Double?
     let top_retailer: String?
+    let goals_preferences: String?
+    let financial_details: String?
 }
 
 struct Card: Codable, Identifiable {

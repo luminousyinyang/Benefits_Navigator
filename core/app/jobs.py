@@ -63,9 +63,16 @@ def update_all_cards():
             IMPORTANT RULES:
             1. 📄 SOURCE OF TRUTH: You MUST try to find the "Guide to Benefits" PDF or official landing page.
             2. 🚫 EXCLUDE GENERIC/FINANCIAL FEATURES: Exclude "0% APR", "Annual Fees", "Balance Transfers", "Monthly Installments", "Family/Authorized User" features, "$0 Liability", "ID Theft Protection", and "Presale Tickets". These are standard or costs.
-            3. 💰 FOCUS ON VALUE: Prioritize benefits that save money (Credits, Reimbursements, Insurance, Status, Price Protection, Cash Back tiers).
+            3. 💰 COMPREHENSIVE REWARDS STRUCTURE: You MUST list EVERY SINGLE earning rate. Do not summarize.
+               - Include specific multipliers (e.g. "2x miles on Restaurants", "2x miles on Hotel Stays").
+               - Include the base rate (e.g. "1x miles on all other purchases").
+               - Include any tier bonuses.
+               - MISS NOTHING. Errors of omission are unacceptable.
             4. 🛡️ MANDATORY CHECK: You MUST explicitly look for "Extended Warranty", "Purchase Protection", and "Return Protection". If the card has them, INCLUDE THEM.
-            5. 🔗 CONSOLIDATE: If a benefit is split (e.g. "3% at Apple" and "3% at Partners"), COMBINE them into one single benefit (e.g. "3% Daily Cash at Apple & Select Partners").
+            5. 🔗 CONSOLIDATE BY RATE: Group all categories with the SAME earning rate into one single line.
+               - BAD: "2x on Dining", "2x on Travel" (Separate lines)
+               - GOOD: "2x Miles on Dining & Travel" (Combined)
+               - Combine partner offers if they share a rate.
             6. 📅 VERIFY DATE VALIDITY: Double-check that detailed partners (e.g. Panera, T-Mobile) are STILL valid for the current date. Do not list expired partners.
             7. 📝 BE SPECIFIC: List specific active retailers and coverage amounts in 'details'.
             8. 🔎 GO DEEP: Find mostly purchase perks and insurance.
