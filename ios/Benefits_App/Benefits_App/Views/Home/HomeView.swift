@@ -165,10 +165,12 @@ struct HomeView: View {
                             // MARK: - Action Grid
                             HStack(spacing: 16) {
                                 NavigationLink(destination: WalletView()) {
-                                    ActionButton(icon: "visibility", title: "Benefits", subtitle: "View at a glance", cardBg: cardBackground)
+                                    ActionButton(icon: "creditcard.fill", title: "My Wallet", subtitle: "View Card Benefits", cardBg: cardBackground)
                                 }
-                                NavigationLink(destination: ManageCardsView()) {
-                                    ActionButton(icon: "creditcard", title: "My Wallet", subtitle: "Manage cards", cardBg: cardBackground)
+                                NavigationLink(destination: Text("Action Center Coming Soon")
+                                    .font(.title)
+                                    .foregroundColor(.gray)) {
+                                    ActionButton(icon: "square.grid.2x2.fill", title: "Action Center", subtitle: "Coming Soon", cardBg: cardBackground)
                                 }
                             }
                             .padding(.bottom, 32)
@@ -233,7 +235,7 @@ struct ActionButton: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Image(systemName: icon == "visibility" ? "eye.fill" : "creditcard.fill")
+            Image(systemName: icon)
                 .font(.system(size: 24))
                 .foregroundColor(.white)
                 .padding(10)

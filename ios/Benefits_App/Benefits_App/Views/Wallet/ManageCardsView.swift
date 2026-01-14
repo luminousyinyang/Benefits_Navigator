@@ -25,12 +25,25 @@ struct ManageCardsView: View {
             VStack(spacing: 0) {
             // ... (Header and scroll view logic is fine, no changes needed inside)
                 // MARK: - Navigation Bar
-                VStack(spacing: 8) {
+                ZStack {
+                    HStack {
+                        Button(action: {
+                            presentationMode.wrappedValue.dismiss()
+                        }) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 20, weight: .semibold)) // Matches system back button weight often
+                                .foregroundColor(.white)
+                                .padding(.leading, 16)
+                        }
+                        Spacer()
+                    }
+                    
                     Text("My Wallet")
                         .font(.system(size: 17, weight: .bold))
                         .foregroundColor(.white)
-                        .padding(.top, 12)
                 }
+                .padding(.top, 12)
+                .padding(.bottom, 8)
                 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
@@ -91,9 +104,7 @@ struct ManageCardsView: View {
                                         benefits: card.benefits
                                     )
                                     .contentShape(Rectangle()) // Make full row tappable
-                                    .onTapGesture {
-                                        selectedCard = card
-                                    }
+                                    // Removed onTapGesture to disable benefit view details
                                 }
                                 
                                 if authManager.userCards.isEmpty {
@@ -158,9 +169,7 @@ struct ManageCardsView: View {
             })
             .environmentObject(authManager)
         }
-        .sheet(item: $selectedCard) { card in
-            CardDetailView(card: card)
-        }
+        .navigationBarHidden(true) // Hide default nav bar to use custom one for consistent style
         .alert(isPresented: $showingDeleteAlert) {
             Alert(
                 title: Text("Delete Card?"),

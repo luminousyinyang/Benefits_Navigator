@@ -147,6 +147,16 @@ struct WalletView: View {
             
             Spacer()
             
+            NavigationLink(destination: ManageCardsView()) {
+                 Image(systemName: "gearshape.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(textSecondary)
+                    .padding(10)
+                    .background(cardBackground)
+                    .clipShape(Circle())
+            }
+            .padding(.trailing, 8)
+            
             Button(action: {}) {
                 Image(systemName: "bell.badge")
                     .font(.system(size: 20))
