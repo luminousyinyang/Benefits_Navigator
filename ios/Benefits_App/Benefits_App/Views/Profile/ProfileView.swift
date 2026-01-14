@@ -27,6 +27,22 @@ struct ProfileView: View {
         return Array(transactionService.transactions.prefix(3))
     }
     
+    var transactionsLastMonth: Int {
+        let calendar = Calendar.current
+        let oneMonthAgo = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        
+        // Date formatter for parsing transaction dates (ISO 8601 YYYY-MM-DD)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        
+        return transactionService.transactions.filter { tx in
+            if let date = formatter.date(from: tx.date) {
+                return date >= oneMonthAgo
+            }
+            return false
+        }.count
+    }
+    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -57,18 +73,10 @@ struct ProfileView: View {
                             
                             // MARK: - Greeting Section
                             VStack(spacing: 8) {
-                                ZStack(alignment: .bottomTrailing) {
                                     Image(systemName: "person.crop.circle.fill")
                                         .resizable()
                                         .frame(width: 100, height: 100)
                                         .foregroundColor(Color.gray.opacity(0.5))
-                                    
-                                    Image(systemName: "pencil.circle.fill")
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .foregroundColor(primaryBlue)
-                                        .background(Circle().fill(backgroundDark))
-                                }
                                 
                                 Text("Hi \(authManager.userProfile?.first_name ?? "User")!")
                                     .font(.system(size: 28, weight: .bold))
@@ -84,7 +92,7 @@ struct ProfileView: View {
                                 StatCard(title: "Benefits Earned", value: totalCashback, icon: "dollarsign.circle.fill", color: .green)
                                 StatCard(title: "Cards Active", value: "\(authManager.userCards.count)", icon: "creditcard.fill", color: .blue)
                                 StatCard(title: "Top Merchant", value: topRetailer, icon: "cart.fill", color: .orange)
-                                StatCard(title: "Next Reward", value: "2 Days", icon: "gift.fill", color: .purple)
+                                StatCard(title: "Transactions Last Month", value: "\(transactionsLastMonth)", icon: "calendar", color: .purple)
                             }
                             .padding(.horizontal, 24)
                             

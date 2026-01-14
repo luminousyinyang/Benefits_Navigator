@@ -9,11 +9,20 @@ struct TransactionsView: View {
     @State private var showImportError = false
     @State private var importErrorMessage = ""
     @State private var isProcessing = false
+    @State private var searchText = ""
     
     // Custom Colors
     let backgroundDark = Color(red: 16/255, green: 24/255, blue: 34/255)
     let cardBackground = Color(red: 28/255, green: 32/255, blue: 39/255)
     let primaryBlue = Color(red: 19/255, green: 109/255, blue: 236/255)
+    
+    var filteredTransactions: [Transaction] {
+        if searchText.isEmpty {
+            return transactionService.transactions
+        } else {
+            return transactionService.transactions.filter { $0.retailer.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
     
     var body: some View {
         NavigationStack {
@@ -60,7 +69,20 @@ struct TransactionsView: View {
                     .padding(.top, 20)
                     .padding(.bottom, 20)
                     
-                    if transactionService.transactions.isEmpty && !isProcessing {
+                    // Search Bar
+                    HStack {
+                         Image(systemName: "magnifyingglass")
+                             .foregroundColor(.gray)
+                         TextField("Search transactions", text: $searchText)
+                             .foregroundColor(.white)
+                    }
+                    .padding()
+                    .background(cardBackground)
+                    .cornerRadius(12)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 20)
+                    
+                    if filteredTransactions.isEmpty && !isProcessing {
                         // Empty State
                         VStack(spacing: 16) {
                             Spacer()
@@ -80,7 +102,7 @@ struct TransactionsView: View {
                         // Transaction List
                         ScrollView {
                             LazyVStack(spacing: 12) {
-                                ForEach(transactionService.transactions) { transaction in
+                                ForEach(filteredTransactions) { transaction in
                                     TransactionRow(transaction: transaction)
                                 }
                             }

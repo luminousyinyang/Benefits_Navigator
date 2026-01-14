@@ -11,7 +11,7 @@ struct WalletView: View {
     
     @State private var selectedCardId: String? = nil
     @State private var editingBonusCard: UserCard?
-    @State private var selectedCategory: WalletCategory = .insights
+    @State private var selectedCategory: WalletCategory = .perks
     
     enum WalletCategory {
         case insights, perks
@@ -36,10 +36,6 @@ struct WalletView: View {
                             tabSection(proxy: proxy)
                             
                             VStack(alignment: .leading, spacing: 30) {
-                                // Gemini Insights
-                                geminiInsightsSection
-                                    .id(WalletCategory.insights)
-                                
                                 // Benefits (Bonus + Standard)
                                 cardBenefitsSection
                                     .id(WalletCategory.perks)
@@ -172,76 +168,89 @@ struct WalletView: View {
     
     private var cardCarousel: some View {
 
-        TabView(selection: $selectedCardId) {
-            if authManager.userCards.isEmpty {
-                 // Empty state
-                 RoundedRectangle(cornerRadius: 20)
-                    .fill(cardBackground)
-                    .frame(width: 320, height: 200)
-                    .overlay(Text("No cards found. Add one in 'My Wallet'.").foregroundColor(textSecondary))
-                    .tag(Optional<String>.none) // Handle nil tag for empty
-            } else {
-                ForEach(authManager.userCards) { card in
-                    VStack(alignment: .leading, spacing: 12) {
-                        // Card Visual
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(LinearGradient(colors: [primaryBlue, secondaryBlue], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                
-                            VStack(alignment: .leading) {
-                                HStack {
-                                    Text(card.name.uppercased())
-                                        .font(.system(size: 12, weight: .bold))
-                                        .tracking(0.5)
-                                        .lineLimit(1)
-                                        .minimumScaleFactor(0.75)
-                                        .truncationMode(.tail)
-                                        .frame(maxWidth: .infinity, alignment: .leading) // Utilize available space
-                                        
-                                    Image(systemName: "wave.3.right")
-                                        .font(.system(size: 14))
-                                        .layoutPriority(1) // Keep icon visible
-                                }
-                                
-                                Spacer()
-                                Image(systemName: "cpu.fill")
-                                    .font(.title)
-                                    .rotationEffect(.degrees(90))
-                                Spacer()
-                                HStack(alignment: .bottom) {
-                                    VStack(alignment: .leading) {
-                                        Text("**** **** **** ****")
-                                            .font(.system(.body, design: .monospaced))
+        VStack(spacing: 16) {
+            TabView(selection: $selectedCardId) {
+                if authManager.userCards.isEmpty {
+                     // Empty state
+                     RoundedRectangle(cornerRadius: 20)
+                        .fill(cardBackground)
+                        .frame(width: 320, height: 200)
+                        .overlay(Text("No cards found. Add one in 'My Wallet'.").foregroundColor(textSecondary))
+                        .tag(Optional<String>.none) // Handle nil tag for empty
+                } else {
+                    ForEach(authManager.userCards) { card in
+                        VStack(alignment: .leading, spacing: 12) {
+                            // Card Visual
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(LinearGradient(colors: [primaryBlue, secondaryBlue], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    
+                                VStack(alignment: .leading) {
+                                    HStack {
+                                        Text(card.name.uppercased())
+                                            .font(.system(size: 12, weight: .bold))
+                                            .tracking(0.5)
                                             .lineLimit(1)
-                                            .minimumScaleFactor(0.8)
-                                        Text(authManager.userProfile?.first_name.uppercased() ?? "USER")
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
-                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.75)
+                                            .truncationMode(.tail)
+                                            .frame(maxWidth: .infinity, alignment: .leading) // Utilize available space
+                                            
+                                        Image(systemName: "wave.3.right")
+                                            .font(.system(size: 14))
+                                            .layoutPriority(1) // Keep icon visible
                                     }
+                                    
                                     Spacer()
-                                    Text(card.brand.uppercased())
-                                        .font(.title3)
-                                        .italic()
-                                        .fontWeight(.black)
+                                    Image(systemName: "cpu.fill")
+                                        .font(.title)
+                                        .rotationEffect(.degrees(90))
+                                    Spacer()
+                                    HStack(alignment: .bottom) {
+                                        VStack(alignment: .leading) {
+                                            Text("**** **** **** ****")
+                                                .font(.system(.body, design: .monospaced))
+                                                .lineLimit(1)
+                                                .minimumScaleFactor(0.8)
+                                            Text(authManager.userProfile?.first_name.uppercased() ?? "USER")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                                .lineLimit(1)
+                                        }
+                                        Spacer()
+                                        Text(card.brand.uppercased())
+                                            .font(.title3)
+                                            .italic()
+                                            .fontWeight(.black)
+                                    }
                                 }
+                                .padding(25)
+                                .foregroundColor(.white)
                             }
-                            .padding(25)
-                            .foregroundColor(.white)
+                            .frame(width: 320, height: 200) // Constraint is on the container now
                         }
-                        .frame(width: 320, height: 200) // Constraint is on the container now
+                        .tag(Optional(card.card_id ?? card.id)) // Tag for selection, use card_id or id
                     }
-                    .tag(Optional(card.card_id ?? card.id)) // Tag for selection, use card_id or id
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 200) // Constrain height for TabView
+            
+            // Custom Page Indicator
+            if !authManager.userCards.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(authManager.userCards) { card in
+                        Circle()
+                            .fill(self.selectedCardId == (card.card_id ?? card.id) ? primaryBlue : Color.gray.opacity(0.3))
+                            .frame(width: 8, height: 8)
+                    }
                 }
             }
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .frame(height: 280) // Constrain height for TabView
+        .frame(height: 240)
     }
 
     private func tabSection(proxy: ScrollViewProxy) -> some View {
         HStack(spacing: 0) {
-            tabItem(title: "Insights", category: .insights, icon: "sparkles", proxy: proxy)
             tabItem(title: "Benefits", category: .perks, proxy: proxy)
         }
         .padding(.horizontal)
@@ -278,64 +287,7 @@ struct WalletView: View {
         }
     }
     
-    private var geminiInsightsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Label("Gemini Insights", systemImage: "sparkles")
-                .font(.headline)
-                .foregroundColor(.white)
-            
-            // Recommended Card
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("RECOMMENDED")
-                            .font(.system(size: 10, weight: .black))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(primaryBlue.opacity(0.2))
-                            .foregroundColor(primaryBlue)
-                            .cornerRadius(4)
-                        
-                        Text("Purchase Protection")
-                            .font(.body)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                        
-                        Text("You're browsing laptops. Use this card to get an extra year of warranty and 120 days of theft protection automatically.")
-                            .font(.footnote)
-                            .foregroundColor(textSecondary)
-                            .lineLimit(3)
-                    }
-                    
-                    Spacer()
-                    
-                    Image(systemName: "shield.checkered")
-                        .font(.title2)
-                        .foregroundColor(primaryBlue)
-                        .frame(width: 40, height: 40)
-                        .background(primaryBlue.opacity(0.1))
-                        .clipShape(Circle())
-                }
-                
-                Button(action: {}) {
-                    Text("View Policy Details")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(primaryBlue)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(primaryBlue.opacity(0.1))
-                        .cornerRadius(8)
-                }
-            }
-            .padding()
-            .background(cardBackground)
-            .cornerRadius(16)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(LinearGradient(colors: [primaryBlue.opacity(0.5), .clear], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
-            )
-        }
-    }
+
     
     private var cardBenefitsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
