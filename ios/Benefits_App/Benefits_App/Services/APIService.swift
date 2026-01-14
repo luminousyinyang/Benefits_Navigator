@@ -277,14 +277,14 @@ class APIService {
     
     // MARK: - Recommendation
     
-    func getRecommendation(storeName: String, prioritizeWarranty: Bool, userCards: [UserCard]) async throws -> RecommendationResponse {
+    func getRecommendation(storeName: String, prioritizeCategory: String?, userCards: [UserCard]) async throws -> RecommendationResponse {
         guard let url = URL(string: "\(baseURL)/recommend") else {
             throw URLError(.badURL)
         }
         
         let body = RecommendationRequest(
             store_name: storeName,
-            prioritize_warranty: prioritizeWarranty,
+            prioritize_category: prioritizeCategory,
             user_cards: userCards
         )
         
@@ -449,7 +449,7 @@ struct SignOnBonus: Codable {
 
 struct RecommendationRequest: Codable {
     let store_name: String
-    let prioritize_warranty: Bool
+    let prioritize_category: String?
     let user_cards: [UserCard]
 }
 

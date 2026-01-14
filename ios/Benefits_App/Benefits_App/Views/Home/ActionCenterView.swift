@@ -6,12 +6,12 @@ struct ActionCenterView: View {
     
     // Enumerating categories exactly as requested
     enum Category: String, CaseIterable {
-        case carRental = "Car Rental Insurance Benefit"
+        case carRental = "Car Rental Insurance"
         case airport = "Airport Benefits"
-        case warranty = "Warranty Benefits"
-        case priceProtection = "Price Protection Benefits"
-        case returns = "Guaranteed Returns Benefit"
-        case cellPhone = "Cell Phone Protection Benefit"
+        case warranty = "Extended Warranty"
+        case priceProtection = "Price Protection"
+        case returns = "Guaranteed Returns"
+        case cellPhone = "Cell Phone Protection"
         
         var icon: String {
             switch self {

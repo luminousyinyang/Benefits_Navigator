@@ -8,7 +8,7 @@ struct HomeView: View {
     let secondaryBlue = Color(red: 59/255, green: 130/255, blue: 246/255)
     
     @State private var searchText = ""
-    @State private var prioritizeWarranty = false
+    @State private var selectedCategory: ActionCenterView.Category? = nil
     @State private var navigateToRecommendation = false
     
     @EnvironmentObject var authManager: AuthManager
@@ -18,8 +18,6 @@ struct HomeView: View {
     var firstName: String {
         authManager.userProfile?.first_name ?? ""
     }
-
-
 
     var body: some View {
         NavigationStack {
@@ -130,35 +128,51 @@ struct HomeView: View {
                                         .stroke(primaryBlue.opacity(0.3), lineWidth: 1)
                                 )
                                 .shadow(color: primaryBlue.opacity(0.2), radius: 10, x: 0, y: 0)
-                                
-                                // Warranty Toggle
-                                HStack(spacing: 16) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(primaryBlue.opacity(0.1))
-                                            .frame(width: 40, height: 40)
-                                        Image(systemName: "shield.fill")
-                                            .foregroundColor(primaryBlue)
+
+                                // Prioritize Menu
+                                Menu {
+                                    Button(action: { selectedCategory = nil }) {
+                                        if selectedCategory == nil { Label("Maximize Rewards (Default)", systemImage: "checkmark") }
+                                        else { Text("Maximize Rewards (Default)") }
                                     }
                                     
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Prioritize Warranty")
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor(.white)
-                                        Text("Highlight cards with extended protection")
-                                            .font(.system(size: 12))
+                                    Divider()
+                                    
+                                    ForEach(ActionCenterView.Category.allCases, id: \.self) { category in
+                                        Button(action: { selectedCategory = category }) {
+                                            if selectedCategory == category { Label(category.rawValue, systemImage: "checkmark") }
+                                            else { Text(category.rawValue) }
+                                        }
+                                    }
+                                } label: {
+                                    HStack(spacing: 16) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .fill(primaryBlue.opacity(0.1))
+                                                .frame(width: 40, height: 40)
+                                            Image(systemName: selectedCategory?.icon ?? "star.circle.fill")
+                                                .foregroundColor(primaryBlue)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(selectedCategory?.rawValue ?? "Maximize Rewards")
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundColor(.white)
+                                            Text(selectedCategory == nil ? "Finding the highest value card" : "Prioritizing this benefit")
+                                                .font(.system(size: 12))
+                                                .foregroundColor(.gray)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "chevron.up.chevron.down")
                                             .foregroundColor(.gray)
+                                            .font(.system(size: 14))
                                     }
-                                    
-                                    Spacer()
-                                    
-                                    Toggle("", isOn: $prioritizeWarranty)
-                                        .toggleStyle(SwitchToggleStyle(tint: primaryBlue))
-                                        .labelsHidden()
+                                    .padding()
+                                    .background(cardBackground)
+                                    .cornerRadius(12)
                                 }
-                                .padding()
-                                .background(cardBackground)
-                                .cornerRadius(12)
                             }
                             .padding(.bottom, 24)
                             
@@ -213,11 +227,11 @@ struct HomeView: View {
                         .padding(.top, 10)
                     }
                     
-
+ 
                 }
             }
             .navigationDestination(isPresented: $navigateToRecommendation) {
-                RecommendationView(storeName: searchText, prioritizeWarranty: prioritizeWarranty)
+                RecommendationView(storeName: searchText, prioritizeCategory: selectedCategory?.rawValue)
             }
         }
     }

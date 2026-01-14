@@ -408,7 +408,12 @@ def get_recommendation(request: RecommendationRequest, current_user: dict = Depe
                 bonus_str = f"\n  *** ACTIVE SIGN-ON BONUS: Earn {card.sign_on_bonus.bonus_value} {card.sign_on_bonus.bonus_type} by {card.sign_on_bonus.end_date}. Spent: ${card.sign_on_bonus.current_spend} ***"
             cards_str += f"- ID: {card.card_id}, Name: {card.name}, Brand: {card.brand}\n  Benefits: {benefits_str}{bonus_str}\n"
 
-        priority_text = "PRIORITIZE EXTENDED WARRANTY and PURCHASE PROTECTION above all else." if request.prioritize_warranty else "Maximizing Cash Back/Points Value is the ONLY goal."
+        if request.prioritize_category:
+            priority_text = f"PRIORITIZE '{request.prioritize_category}' benefits above all else."
+            fallback_text = f"CRITICAL: If NO card matches the '{request.prioritize_category}' priority, you MUST explicitly state 'No cards found with {request.prioritize_category} benefit' in the reasoning, and then FALLBACK to finding the best card for VALUE (Cash Back/Points)."
+        else:
+            priority_text = "Maximizing Cash Back/Points Value is the ONLY goal."
+            fallback_text = ""
         
         # User Context
         user_context = ""
@@ -423,6 +428,7 @@ def get_recommendation(request: RecommendationRequest, current_user: dict = Depe
         
         GOAL: Recommend the SINGLE BEST credit card from the list below to use for this purchase.
         STRATEGY: {priority_text}
+        {fallback_text}
         
         ADDITIONAL CONTEXT (IMPORTANT):{user_context}
         
@@ -432,15 +438,15 @@ def get_recommendation(request: RecommendationRequest, current_user: dict = Depe
         STEPS:
         1. 🌍 SEARCH: Use Google Search to identify what kind of store "{request.store_name}" is (e.g., Grocery, Dining, Travel, Electronics, Drugstore).
         2. 🧠 ANALYZE: Compare the user's cards against this category.
-           - If Strategy is WARRANTY: Look for "Extended Warranty", "Purchase Protection". A card with these WINS over a card with high points but no protection.
-           - If Strategy is VALUE: Look for the highest multiplier (e.g. 4x > 3x > 2% > 1.5%).
+           - If Strategy is PRIORITIZED CATEGORY: Look specifically for that benefit type (e.g. "Car Rental Insurance", "Warranty"). A card with this WINS over a card with high points but no protection.
+           - If Strategy is VALUE (or Fallback): Look for the highest multiplier (e.g. 4x > 3x > 2% > 1.5%).
            - **APPLY CONTEXT**: If the user has specific goals (e.g. "earning miles") or financial constraints (e.g. "needs low APR"), factor this heavily into the decision.
         3. 🧮 CALCULATE: Estimate the return value (e.g. "4% back", "$15 value").
         
         OUTPUT JSON:
         {{
             "best_card_id": "Exact ID from list",
-            "reasoning": ["Reason 1", "Reason 2", "How it fits user goals"],
+            "reasoning": ["Reason 1", "Reason 2 (mention priority status)", "How it fits user goals"],
             "estimated_return": "e.g. '4% Cash Back' or 'Extended Warranty Included'",
             "runner_up_id": "Optional ID of 2nd best",
             "runner_up_reasoning": ["Why it's second"],

@@ -57,7 +57,7 @@ class UserCard(BaseModel):
 
 class RecommendationRequest(BaseModel):
     store_name: str
-    prioritize_warranty: bool
+    prioritize_category: str | None = None
     user_cards: list[UserCard]
 
 class RecommendationResponse(BaseModel):

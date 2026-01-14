@@ -2,7 +2,7 @@ import SwiftUI
 
 struct RecommendationView: View {
     let storeName: String
-    let prioritizeWarranty: Bool
+    let prioritizeCategory: String?
     
     @State private var recommendation: RecommendationResponse?
     @State private var userCards: [UserCard] = []
@@ -12,9 +12,9 @@ struct RecommendationView: View {
     @Environment(\.dismiss) var dismiss
     
     // Initializer for Mock Data Support (Preview)
-    init(storeName: String, prioritizeWarranty: Bool, mockResponse: RecommendationResponse? = nil, mockCards: [UserCard]? = nil) {
+    init(storeName: String, prioritizeCategory: String?, mockResponse: RecommendationResponse? = nil, mockCards: [UserCard]? = nil) {
         self.storeName = storeName
-        self.prioritizeWarranty = prioritizeWarranty
+        self.prioritizeCategory = prioritizeCategory
         
         if let mock = mockResponse, let cards = mockCards {
             _recommendation = State(initialValue: mock)
@@ -96,12 +96,12 @@ struct RecommendationView: View {
                                 .foregroundColor(.white)
                                 .multilineTextAlignment(.center)
                             
-                            Text(prioritizeWarranty ? "Optimized for Warranty" : "Optimized for Rewards")
+                            Text(prioritizeCategory != nil ? "Optimized for \(prioritizeCategory!)" : "Optimized for Rewards")
                                 .font(.system(size: 13, weight: .medium))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
-                                .background(prioritizeWarranty ? Color.purple.opacity(0.2) : Color.green.opacity(0.2))
-                                .foregroundColor(prioritizeWarranty ? .purple : .green)
+                                .background(prioritizeCategory != nil ? Color.purple.opacity(0.2) : Color.green.opacity(0.2))
+                                .foregroundColor(prioritizeCategory != nil ? .purple : .green)
                                 .cornerRadius(20)
                         }
                         .multilineTextAlignment(.center)
@@ -222,7 +222,7 @@ struct RecommendationView: View {
             // 2. Get recommendation
             let result = try await APIService.shared.getRecommendation(
                 storeName: storeName,
-                prioritizeWarranty: prioritizeWarranty,
+                prioritizeCategory: prioritizeCategory,
                 userCards: self.userCards
             )
             
@@ -438,7 +438,7 @@ struct BenefitRow: View {
     
     return RecommendationView(
         storeName: "Whole Foods", 
-        prioritizeWarranty: false,
+        prioritizeCategory: nil,
         mockResponse: mockResponse,
         mockCards: [mockCard, mockRunnerUp]
     )
