@@ -11,8 +11,9 @@ load_dotenv()
 
 app = FastAPI(title="Benefits App Backend")
 
-from routers import transactions
+from routers import transactions, actions
 app.include_router(transactions.router)
+app.include_router(actions.router)
 
 @app.on_event("startup")
 def startup_event():

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var authManager = AuthManager()
+    @StateObject private var actionManager = ActionManager()
     
     var body: some View {
         Group {
@@ -25,6 +26,7 @@ struct ContentView: View {
             }
         }
         .environmentObject(authManager)
+        .environmentObject(actionManager)
     }
 }
 

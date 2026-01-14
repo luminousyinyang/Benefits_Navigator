@@ -167,10 +167,8 @@ struct HomeView: View {
                                 NavigationLink(destination: WalletView()) {
                                     ActionButton(icon: "creditcard.fill", title: "My Wallet", subtitle: "View Card Benefits", cardBg: cardBackground)
                                 }
-                                NavigationLink(destination: Text("Action Center Coming Soon")
-                                    .font(.title)
-                                    .foregroundColor(.gray)) {
-                                    ActionButton(icon: "square.grid.2x2.fill", title: "Action Center", subtitle: "Coming Soon", cardBg: cardBackground)
+                                NavigationLink(destination: ActionCenterView()) {
+                                    ActionButton(icon: "square.grid.2x2.fill", title: "Action Center", subtitle: "Track & Protect", cardBg: cardBackground)
                                 }
                             }
                             .padding(.bottom, 32)

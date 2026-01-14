@@ -67,3 +67,38 @@ class RecommendationResponse(BaseModel):
     runner_up_id: str | None = None
     runner_up_reasoning: list[str] | None = None
     runner_up_return: str | None = None
+
+from enum import Enum
+class ActionCenterCategory(str, Enum):
+    CAR_RENTAL = "car_rental_insurance"
+    AIRPORT = "airport_benefits"
+    WARRANTY = "warranty_benefits"
+    PRICE_PROTECTION = "price_protection"
+    RETURNS = "guaranteed_returns"
+    CELL_PHONE = "cell_phone_protection"
+
+class ActionItem(BaseModel):
+    id: str | None = None
+    category: ActionCenterCategory
+    card_id: str
+    card_name: str
+    retailer: str
+    date: str # ISO Date
+    total: float
+    # Category Specifics (Optional)
+    car_rented: str | None = None
+    flight_info: str | None = None # Ticket/Flight numbers
+    item_bought: str | None = None
+    phone_bought: str | None = None
+    
+    # Help / LLM
+    help_requested: bool = False
+    gemini_instructions: str | None = None
+    
+    # Price Protection Specifics
+    monitor_price: bool = False
+    lowest_price_found: float | None = None
+    last_checked: str | None = None
+
+class HelpRequest(BaseModel):
+    user_notes: str

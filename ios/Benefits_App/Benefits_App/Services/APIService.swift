@@ -461,3 +461,92 @@ struct RecommendationResponse: Codable {
     let runner_up_reasoning: [String]?
     let runner_up_return: String?
 }
+
+// MARK: - Action Center Models
+
+struct ActionItem: Codable, Identifiable {
+    let id: String?
+    let category: String
+    let card_id: String
+    let card_name: String
+    let retailer: String
+    let date: String
+    let total: Double
+    // Category Specifics
+    let car_rented: String?
+    let flight_info: String?
+    let item_bought: String?
+    let phone_bought: String?
+    // Help
+    var help_requested: Bool?
+    var gemini_instructions: String?
+    // Price Protection
+    var monitor_price: Bool?
+    var lowest_price_found: Double?
+    var last_checked: String?
+}
+
+// Extension to APIService for Action Center
+extension APIService {
+    
+    func fetchActionItems(category: String) async throws -> [ActionItem] {
+        guard let url = URL(string: "\(baseURL)/actions/\(category)") else {
+            throw URLError(.badURL)
+        }
+        
+        let (data, _) = try await performRequest(url: url)
+        return try JSONDecoder().decode([ActionItem].self, from: data)
+    }
+    
+    func addActionItem(category: String, item: ActionItem) async throws {
+        guard let url = URL(string: "\(baseURL)/actions/\(category)") else {
+            throw URLError(.badURL)
+        }
+        
+        let jsonData = try JSONEncoder().encode(item)
+        let (_, response) = try await performRequest(url: url, method: "POST", body: jsonData)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            throw URLError(.badServerResponse)
+        }
+    }
+    
+    func getActionHelp(category: String, itemId: String, notes: String) async throws -> String {
+        guard let url = URL(string: "\(baseURL)/actions/\(category)/\(itemId)/help") else {
+            throw URLError(.badURL)
+        }
+        
+        let body = ["user_notes": notes]
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+        
+        // Increased timeout for Gemini
+        let (data, response) = try await performRequest(url: url, method: "POST", body: jsonData, timeout: 60)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+             throw URLError(.badServerResponse)
+        }
+        
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let instructions = json["instructions"] as? String {
+            return instructions
+        }
+        return ""
+    }
+    
+    func togglePriceMonitor(category: String, itemId: String, monitor: Bool) async throws {
+        // category should generally be 'price_protection' but passing it keeps it generic
+        guard let url = URL(string: "\(baseURL)/actions/\(category)/\(itemId)/monitor?monitor=\(monitor)") else {
+            throw URLError(.badURL)
+        }
+        
+        // POST to toggle, query param used for simplicity as per router definition (implied)
+        // Wait, my router: `@router.post("/{category}/{item_id}/monitor")` with `monitor: bool` param.
+        // FastAPI reads query params by default for scalar types not in path.
+        
+        let (_, response) = try await performRequest(url: url, method: "POST")
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            throw URLError(.badServerResponse)
+        }
+    }
+}

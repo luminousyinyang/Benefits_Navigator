@@ -341,3 +341,76 @@ def remove_user_card(uid: str, card_id: str):
     except Exception as e:
         print(f"Error removing card: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# MARK: - Action Center Helpers
+
+def add_action_item(uid: str, category: str, item_data: dict):
+    """Adds an item to the user's specific action center category subcollection."""
+    try:
+        # Use a new document ref to get an ID
+        collection_ref = db.collection('users').document(uid).collection(category)
+        doc_ref = collection_ref.document()
+        item_data['id'] = doc_ref.id
+        item_data['created_at'] = firestore.SERVER_TIMESTAMP
+        doc_ref.set(item_data)
+        return doc_ref.id
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def get_action_items(uid: str, category: str):
+    """Fetches all items for a specific category."""
+    try:
+        docs = db.collection('users').document(uid).collection(category).order_by('created_at', direction=firestore.Query.DESCENDING).stream()
+        items = []
+        for doc in docs:
+            item = doc.to_dict()
+            item['id'] = doc.id
+            items.append(item)
+        return items
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def get_action_item(uid: str, category: str, item_id: str):
+    """Fetches a single action item."""
+    try:
+        doc = db.collection('users').document(uid).collection(category).document(item_id).get()
+        if doc.exists:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            return data
+        return None
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def update_action_item(uid: str, category: str, item_id: str, updates: dict):
+    """Updates an action item."""
+    try:
+        db.collection('users').document(uid).collection(category).document(item_id).update(updates)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def get_all_monitored_price_items():
+    """
+    Collection Group Query to find ALL items across ALL users that have 'monitor_price' == True.
+    This assumes the collection name is EXACTLY 'price_protection'.
+    """
+    try:
+        # Note: You might need to create an index in Firebase Console for this query.
+        docs = db.collection_group('price_protection').where('monitor_price', '==', True).stream()
+        items = []
+        for doc in docs:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            # We need the parent user ID to construct the path for updates later
+            # doc.reference.parent.parent.id gives the user ID
+            # path is users/{uid}/price_protection/{docId}
+            # parent = users/{uid}/price_protection
+            # parent.parent = users/{uid}
+            parent_doc = doc.reference.parent.parent
+            if parent_doc:
+                data['uid'] = parent_doc.id
+                items.append(data)
+        return items
+    except Exception as e:
+        print(f"Collection Group Query Error: {e}")
+        return []
