@@ -69,6 +69,7 @@ struct WalletView: View {
         .onAppear {
             fetchCards()
         }
+        .navigationBarHidden(true)
         .sheet(item: $editingBonusCard) { card in
              // We need to re-verify the bonus exists on this card instance or handling it safely
              if let bonus = card.sign_on_bonus {
@@ -108,10 +109,16 @@ struct WalletView: View {
 
         if !authManager.isLoggedIn { return }
         
+        // Immediate selection from cache to prevent flash
+        if self.selectedCardId == nil, let first = authManager.userCards.first {
+            self.selectedCardId = first.card_id ?? first.id
+        }
+        
         Task {
             await authManager.refreshData()
             
             DispatchQueue.main.async {
+                // formatting check if still needed or if list changed
                 if self.selectedCardId == nil, let first = authManager.userCards.first {
                     self.selectedCardId = first.card_id ?? first.id
                 }

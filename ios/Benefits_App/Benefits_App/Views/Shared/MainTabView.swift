@@ -34,7 +34,9 @@ struct MainTabView: View {
                 }
                 .tag(0)
             
-            WalletView()
+            NavigationStack {
+                WalletView()
+            }
                 .tabItem {
                     Label("Cards", systemImage: "wallet.pass.fill")
                 }

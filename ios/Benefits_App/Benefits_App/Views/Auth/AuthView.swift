@@ -1,11 +1,19 @@
 import SwiftUI
 
 struct AuthView: View {
+    // Custom Colors
+    let backgroundDark = Color(red: 16/255, green: 24/255, blue: 34/255)
+    let cardBackground = Color(red: 28/255, green: 32/255, blue: 39/255)
+    let primaryBlue = Color(red: 19/255, green: 109/255, blue: 236/255)
+
     var body: some View {
         NavigationStack {
             ZStack {
                 // MARK: - Animated Background
                 BackgroundWavesView()
+                
+                // Dark Overlay to match theme but keep waves visible
+                backgroundDark.opacity(0.7).ignoresSafeArea()
 
                 // MARK: - Original Layout (Untouched)
                 VStack {
@@ -14,19 +22,20 @@ struct AuthView: View {
                     // Icon
                     Image(systemName: "sparkles")
                         .font(.largeTitle)
-                        .foregroundColor(.white)
+                        .foregroundColor(primaryBlue)
                         .padding(20)
-                        .background(Color.blue.opacity(0.3))
+                        .background(cardBackground)
                         .cornerRadius(20)
                         .overlay(
                             RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.blue, lineWidth: 1)
+                                .stroke(primaryBlue.opacity(0.5), lineWidth: 1)
                         )
+                        .shadow(color: primaryBlue.opacity(0.3), radius: 10, x: 0, y: 0)
                     
                     // Text Content
                     Text("Maximize Every Swipe")
                         .font(.largeTitle)
-                        .fontWeight(.bold)
+                        .fontWeight(.black)
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
                         .padding(.top)
@@ -47,10 +56,9 @@ struct AuthView: View {
                                 .fontWeight(.semibold)
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color.blue)
+                                .background(primaryBlue)
                                 .foregroundColor(.white)
-                                .cornerRadius(10)
-                                .ignoresSafeArea()
+                                .cornerRadius(12)
                         }
 
                         NavigationLink(destination: LoginView()) {
@@ -58,12 +66,12 @@ struct AuthView: View {
                                 .fontWeight(.semibold)
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color(white: 1.0, opacity: 0.1)) // Darker transparent look
+                                .background(cardBackground)
                                 .foregroundColor(.white)
-                                .cornerRadius(10)
+                                .cornerRadius(12)
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
                                 )
                         }
                     }
@@ -87,9 +95,9 @@ struct AuthView: View {
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color(white: 1.0, opacity: 0.05))
-                                .cornerRadius(10)
-                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                                .background(cardBackground)
+                                .cornerRadius(12)
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
                         }
 
                         Button(action: {}) {
@@ -98,9 +106,9 @@ struct AuthView: View {
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color(white: 1.0, opacity: 0.05))
-                                .cornerRadius(10)
-                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                                .background(cardBackground)
+                                .cornerRadius(12)
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
                         }
                     }
                     .padding(.horizontal)
@@ -113,7 +121,7 @@ struct AuthView: View {
                         .padding()
                 }
             }
-            .navigationBarHidden(true)
+            //.navigationBarHidden(true) // Deprecated, but sticking to existing pattern if needed
         }
     }
 }
