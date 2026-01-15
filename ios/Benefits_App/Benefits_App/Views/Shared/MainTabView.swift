@@ -42,17 +42,23 @@ struct MainTabView: View {
                 }
                 .tag(1)
             
+            CreditAgentView()
+                .tabItem {
+                    Label("Agent", systemImage: "brain.head.profile")
+                }
+                .tag(2)
+            
             TransactionsView()
                 .tabItem {
                     Label("Transactions", systemImage: "doc.text.magnifyingglass")
                 }
-                .tag(2)
+                .tag(3)
             
             ProfileView(showSettings: .constant(false))
                 .tabItem {
                     Label("Profile", systemImage: "person.fill")
                 }
-                .tag(3)
+                .tag(4)
         }
         .accentColor(primaryBlue)
     }

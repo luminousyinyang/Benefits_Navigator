@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr
+from enum import Enum
 
 class UserSignup(BaseModel):
     email: EmailStr
@@ -68,7 +69,6 @@ class RecommendationResponse(BaseModel):
     runner_up_reasoning: list[str] | None = None
     runner_up_return: str | None = None
 
-from enum import Enum
 class ActionCenterCategory(str, Enum):
     CAR_RENTAL = "car_rental_insurance"
     AIRPORT = "airport_benefits"
@@ -102,3 +102,21 @@ class ActionItem(BaseModel):
 
 class HelpRequest(BaseModel):
     user_notes: str
+
+# CreditAgent Models
+
+class AgentPrivateState(BaseModel):
+    thought_signature: str
+    last_run_date: str # ISO
+    next_scheduled_action: str | None = None # ISO
+
+class AgentPublicState(BaseModel):
+    target_goal: str
+    progress_percentage: int | None = 0
+    next_action: str | None = "Analyzing..."
+    action_date: str | None = None # ISO
+    reasoning_summary: str | None = "Agent is starting..."
+    status: str | None = None # "thinking", "idle"
+
+class AgentStartRequest(BaseModel):
+    goal: str

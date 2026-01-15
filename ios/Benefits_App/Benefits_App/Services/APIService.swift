@@ -539,14 +539,53 @@ extension APIService {
             throw URLError(.badURL)
         }
         
-        // POST to toggle, query param used for simplicity as per router definition (implied)
-        // Wait, my router: `@router.post("/{category}/{item_id}/monitor")` with `monitor: bool` param.
-        // FastAPI reads query params by default for scalar types not in path.
-        
+        // POST to toggle
         let (_, response) = try await performRequest(url: url, method: "POST")
         
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
             throw URLError(.badServerResponse)
         }
     }
+    
+    // MARK: - Agent
+    
+    func startAgent(goal: String) async throws {
+        guard let url = URL(string: "\(baseURL)/agent/start") else {
+            throw URLError(.badURL)
+        }
+        
+        let body = ["goal": goal]
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+        
+        let (_, response) = try await performRequest(url: url, method: "POST", body: jsonData)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            throw URLError(.badServerResponse)
+        }
+    }
+    
+    func fetchAgentState() async throws -> AgentPublicState? {
+        guard let url = URL(string: "\(baseURL)/agent/state") else {
+            throw URLError(.badURL)
+        }
+        
+        let (data, _) = try await performRequest(url: url)
+        
+        if let string = String(data: data, encoding: .utf8), string == "null" {
+            return nil
+        }
+        
+        return try JSONDecoder().decode(AgentPublicState.self, from: data)
+    }
+}
+
+// MARK: - Agent Models
+
+struct AgentPublicState: Codable {
+    let target_goal: String
+    let progress_percentage: Int?
+    let next_action: String?
+    let action_date: String?
+    let reasoning_summary: String?
+    let status: String? 
 }

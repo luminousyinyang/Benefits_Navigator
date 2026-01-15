@@ -8,6 +8,8 @@ from firebase_admin import firestore
 import time
 import json
 
+from services.marathon_agent import MarathonAgent
+
 # Initialize Scheduler
 scheduler = BackgroundScheduler()
 
@@ -214,6 +216,33 @@ def check_price_drops():
     except Exception as e:
         print(f"Fatal Price Job Error: {e}")
 
+def run_daily_marathon():
+    """
+    CRON JOB: Runs Daily at Midnight.
+    Triggers the CreditAgent for all users.
+    """
+    print("--- 🧠 STARTING MARATHON AGENT JOB ---")
+    try:
+        agent = MarathonAgent()
+        
+        # Fetch all users
+        # In production, query only active users or chunk this.
+        users_stream = auth.db.collection('users').stream()
+        
+        for user_doc in users_stream:
+            uid = user_doc.id
+            if uid:
+                try:
+                    agent.run_agent_cycle(uid)
+                    # Add delay to avoid rate limits per user
+                    time.sleep(5) 
+                except Exception as e:
+                    print(f"❌ Error running agent for user {uid}: {e}")
+                    
+        print("--- ✅ MARATHON AGENT JOB COMPLETE ---")
+    except Exception as e:
+        print(f"Fatal Marathon Job Error: {e}")
+
 def start_scheduler():
     # Schedule: 2nd of every month at midnight (Card Update)
     trigger_cards = CronTrigger(day=2, hour=0, minute=0)
@@ -222,6 +251,10 @@ def start_scheduler():
     # Schedule: Daily at Midnight (Price Check)
     trigger_prices = CronTrigger(hour=0, minute=0)
     scheduler.add_job(check_price_drops, trigger_prices, id='daily_price_check')
+    
+    # Schedule: Daily at Midnight (Marathon Agent)
+    trigger_agent = CronTrigger(hour=0, minute=0)
+    scheduler.add_job(run_daily_marathon, trigger_agent, id='daily_marathon_agent')
     
     scheduler.start()
     print("📅 Scheduler started: Monthly card updates & Daily price checks active.")

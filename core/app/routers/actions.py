@@ -4,6 +4,7 @@ import auth
 import os
 from google import genai
 from google.genai import types
+from services.marathon_agent import MarathonAgent
 
 router = APIRouter(prefix="/actions", tags=["Action Center"])
 
@@ -22,6 +23,21 @@ def get_gemini_client():
     if not api_key:
         return None
     return genai.Client(api_key=api_key)
+
+@router.post("/trigger-agent")
+def trigger_agent_debug(current_user: dict = Depends(get_current_user)):
+    """
+    DEBUG: Force-runs the Marathon Agent cycle for the current user.
+    """
+    uid = current_user['uid']
+    print(f"🔧 DEBUG: Triggering Marathon Agent for {uid}")
+    
+    try:
+        agent = MarathonAgent()
+        agent.run_agent_cycle(uid)
+        return {"status": "success", "message": "Agent Run Complete. Check Firestore for updates."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{category}", response_model=list[ActionItem])
 def get_items(category: ActionCenterCategory, current_user: dict = Depends(get_current_user)):
@@ -138,3 +154,4 @@ def toggle_price_monitoring(category: ActionCenterCategory, item_id: str, monito
     })
     
     return {"status": "success", "monitor_price": monitor}
+
