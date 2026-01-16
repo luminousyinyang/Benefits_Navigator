@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from models import AgentStartRequest, AgentPublicState
+from models import AgentStartRequest, AgentPublicState, MilestoneUpdateRequest
 import auth
 from services.marathon_agent import MarathonAgent
 
@@ -64,4 +64,55 @@ def get_agent_state(current_user: dict = Depends(get_current_user)):
             return doc.to_dict()
         return None
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/milestone/{milestone_id}/update")
+async def update_milestone(
+    milestone_id: str,
+    update_data: MilestoneUpdateRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update progress, notes, or status of a specific milestone."""
+    try:
+        uid = current_user['uid']
+        # Correct path matching get_agent_state
+        public_ref = auth.db.collection('users').document(uid).collection('public_agent_state').document('main')
+        public_doc = public_ref.get()
+        
+        if not public_doc.exists:
+            raise HTTPException(status_code=404, detail="Agent state not found")
+        
+        data = public_doc.to_dict()
+        state = AgentPublicState(**data)
+        
+        # Find the milestone
+        milestone_index = next((i for i, m in enumerate(state.roadmap) if m.id == milestone_id), None)
+        
+        if milestone_index is None:
+            raise HTTPException(status_code=404, detail="Milestone not found")
+        
+        # Apply updates
+        milestone = state.roadmap[milestone_index]
+        if update_data.status is not None:
+            milestone.status = update_data.status
+        if update_data.spending_current is not None:
+            milestone.spending_current = update_data.spending_current
+        if update_data.user_notes is not None:
+            milestone.user_notes = update_data.user_notes
+        if update_data.manual_completion is not None:
+            milestone.manual_completion = update_data.manual_completion
+            
+        # If manually marked completed, ensure status reflects it
+        if update_data.manual_completion and update_data.status is None:
+             milestone.status = "completed"
+             
+        # Save back to Firestore
+        state.roadmap[milestone_index] = milestone
+        # Use .dict() or .model_dump() depending on Pydantic version (v1 vs v2). models.py seems to imply v1 or compatible.
+        public_ref.set(state.dict(), merge=True)
+        
+        return {"status": "success", "milestone": milestone}
+        
+    except Exception as e:
+        print(f"Error updating milestone: {e}")
         raise HTTPException(status_code=500, detail=str(e))

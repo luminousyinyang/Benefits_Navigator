@@ -4,6 +4,8 @@ struct CreditAgentView: View {
     @StateObject private var agentService = AgentService.shared
     @State private var newGoal: String = ""
     @State private var isStarting = false
+    @State private var selectedMilestone: Milestone? = nil
+    @State private var isNewGoalPresented = false
     
     var body: some View {
         ZStack {
@@ -24,10 +26,18 @@ struct CreditAgentView: View {
                                 .tint(.white)
                         } else {
                             Button(action: {
-                                Task { await agentService.refreshState() }
+                                isNewGoalPresented = true
                             }) {
-                                Image(systemName: "arrow.clockwise")
-                                    .foregroundColor(.white.opacity(0.7))
+                                HStack(spacing: 8) {
+                                    Image(systemName: "plus")
+                                    Text("New Goal")
+                                        .fontWeight(.semibold)
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(20)
                             }
                         }
                     }
@@ -49,7 +59,12 @@ struct CreditAgentView: View {
                 await agentService.startPolling()
             }
         }
+        .sheet(isPresented: $isNewGoalPresented) {
+            NewGoalView(agentService: agentService)
+        }
     }
+    
+    // ... Onboarding View remains unchanged ...
     
     // MARK: - Onboarding View
     
@@ -90,7 +105,7 @@ struct CreditAgentView: View {
                 HStack {
                     if isStarting {
                         ProgressView()
-                            .tint(.white)
+                        
                     } else {
                         Text("Start Agent")
                             .bold()
@@ -114,12 +129,13 @@ struct CreditAgentView: View {
                 .fill(Color(hex: "1E293B").opacity(0.5))
         )
     }
+
     
     // MARK: - Dashboard View
     
     func dashboardView(state: AgentPublicState) -> some View {
         VStack(spacing: 20) {
-            // Goal Card
+            // Goal Header
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "flag.fill")
@@ -133,104 +149,24 @@ struct CreditAgentView: View {
                 Text(state.target_goal)
                     .font(.title3.bold())
                     .foregroundColor(.white)
-                
-                // Progress Bar
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Progress")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        Spacer()
-                        Text("\(state.progress_percentage ?? 0)%")
-                            .font(.caption.bold())
-                            .foregroundColor(.blue)
-                    }
-                    
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule()
-                                .fill(Color.white.opacity(0.1))
-                                .frame(height: 8)
-                            
-                            Capsule()
-                                .fill(LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing))
-                                .frame(width: geo.size.width * (Double(state.progress_percentage ?? 0) / 100.0), height: 8)
-                        }
-                    }
-                    .frame(height: 8)
-                }
             }
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 20)
                     .fill(Color(hex: "1E293B"))
-                    .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 5)
             )
             
-            // Next Action Card
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Image(systemName: "bolt.fill")
-                        .foregroundColor(.yellow)
-                    Text("NEXT MOVE")
-                        .font(.caption.bold())
-                        .foregroundColor(.gray)
-                    Spacer()
-                    if let date = state.action_date {
-                        Text(formatDate(date))
-                            .font(.caption)
-                            .padding(6)
-                            .background(Color.white.opacity(0.05))
-                            .cornerRadius(8)
-                            .foregroundColor(.white)
-                    }
+            // Roadmap
+            if let roadmap = state.roadmap, !roadmap.isEmpty {
+                RoadmapPathView(milestones: roadmap) { selected in
+                    self.selectedMilestone = selected
                 }
-                
-                Text(state.next_action ?? "Analyzing...")
-                    .font(.title3.bold())
-                    .foregroundColor(.white)
-                    .lineLimit(nil)
+            } else {
+                // Fallback for old state or empty roadmap
+                Text("Refresh to see your Roadmap!")
+                    .foregroundColor(.gray)
+                    .padding()
             }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(hex: "1E293B"))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.yellow.opacity(0.2), lineWidth: 1)
-                    )
-            )
-            
-            // Reasoning Card
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "brain")
-                        .foregroundColor(.purple)
-                    Text("AGENT REASONING")
-                        .font(.caption.bold())
-                        .foregroundColor(.gray)
-                    Spacer()
-                }
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(parseReasoning(state.reasoning_summary), id: \.self) { point in
-                        HStack(alignment: .top, spacing: 10) {
-                            Text("•")
-                                .font(.body.bold())
-                                .foregroundColor(.purple)
-                            Text(point)
-                                .font(.body)
-                                .foregroundColor(.gray)
-                                .lineLimit(nil)
-                        }
-                    }
-                }
-            }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(hex: "1E293B"))
-            )
             
             if state.status == "thinking" {
                 HStack {
@@ -242,6 +178,10 @@ struct CreditAgentView: View {
                 }
                 .padding()
             }
+        }
+        .sheet(item: $selectedMilestone) { milestone in
+            MilestoneDetailView(milestone: milestone, reasoning: (milestone.status == "current") ? state.reasoning_summary : nil, agentService: agentService)
+                .presentationDetents([.medium, .large])
         }
     }
     
@@ -260,16 +200,220 @@ struct CreditAgentView: View {
             }
         }
     }
+}
+
+// Separate View for New Goal Sheet
+struct NewGoalView: View {
+    @ObservedObject var agentService: AgentService
+    @State private var goal: String = ""
+    @Environment(\.dismiss) var dismiss
     
-    func formatDate(_ dateString: String) -> String {
-        // Simple formatter, in real app use DateFormatter with ISO8601
-        // Assuming YYYY-MM-DD
-        return dateString
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Set New Goal")
+                .font(.title2.bold())
+                .foregroundColor(.white)
+                .padding(.top)
+            
+            TextField("e.g. Maximize Chase Points", text: $goal)
+                .padding()
+                .background(Color.white.opacity(0.1))
+                .cornerRadius(12)
+                .foregroundColor(.white)
+            
+            Button(action: {
+                Task {
+                    try? await agentService.startAgent(goal: goal)
+                    dismiss()
+                }
+            }) {
+                Text("Start Planning")
+                    .bold()
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
+                    .cornerRadius(12)
+                    .foregroundColor(.white)
+            }
+            .disabled(goal.isEmpty)
+            
+            Spacer()
+        }
+        .padding()
+        .background(Color(hex: "0F172A").ignoresSafeArea())
+    }
+}
+
+struct MilestoneDetailView: View {
+    let milestone: Milestone
+    let reasoning: String?
+    @ObservedObject var agentService: AgentService
+    
+    @State private var notes: String = ""
+    @State private var isNotesEditing = false
+    
+    var body: some View {
+        ZStack {
+            Color(hex: "0F172A").ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Header Image
+                VStack(spacing: 16) {
+                    Image(systemName: milestone.icon)
+                        .font(.system(size: 50))
+                        .foregroundColor(statusColor)
+                        .padding(.top, 20)
+                    
+                    VStack(spacing: 6) {
+                        Text(milestone.title)
+                            .font(.title3.bold())
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                        
+                        Text(milestone.status.capitalized)
+                            .font(.caption.bold())
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(statusColor.opacity(0.2))
+                            .foregroundColor(statusColor)
+                            .cornerRadius(12)
+                    }
+                }
+                .padding(.bottom, 20)
+                
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        
+                        // Action Button (Mark Complete)
+                        if milestone.status == "current" {
+                            Button(action: {
+                                Task { await agentService.updateMilestone(milestone, manualCompletion: true) }
+                            }) {
+                                HStack {
+                                    Image(systemName: "checkmark.circle.fill")
+                                    Text("Mark as Complete")
+                                }
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.green)
+                                .cornerRadius(12)
+                            }
+                        }
+                        
+                        // Progress Bar Section
+                        if let goal = milestone.spending_goal, goal > 0 {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Spending Progress")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
+                                let current = milestone.spending_current ?? 0
+                                let progress = min(current / goal, 1.0)
+                                
+                                ProgressView(value: progress)
+                                    .tint(.blue)
+                                    .scaleEffect(x: 1, y: 3, anchor: .center)
+                                    .frame(height: 12)
+                                    .padding(.vertical, 4)
+                                
+                                HStack {
+                                    Text("$\(Int(current))")
+                                    Spacer()
+                                    Text("$\(Int(goal))")
+                                }
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            }
+                            .padding()
+                            .background(Color.white.opacity(0.05))
+                            .cornerRadius(12)
+                        }
+                        
+                        // Description
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Description")
+                                .font(.headline)
+                                .foregroundColor(.gray)
+                            
+                            Text(milestone.description)
+                                .font(.body)
+                                .foregroundColor(.white)
+                        }
+                        
+                        // Reasoning
+                        if let reasoning = reasoning {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Agent Strategy")
+                                    .font(.headline)
+                                    .foregroundColor(.purple)
+                                
+                                ForEach(parseReasoning(reasoning), id: \.self) { point in
+                                    HStack(alignment: .top, spacing: 10) {
+                                        Text("•").foregroundColor(.purple)
+                                        Text(point).foregroundColor(.gray)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Notes Section
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text("My Notes")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                Spacer()
+                                Button(isNotesEditing ? "Save" : "Edit") {
+                                    if isNotesEditing {
+                                        Task { await agentService.updateMilestone(milestone, notes: notes) }
+                                    }
+                                    isNotesEditing.toggle()
+                                }
+                                .font(.subheadline.bold())
+                                .foregroundColor(.blue)
+                            }
+                            
+                            if isNotesEditing {
+                                TextEditor(text: $notes)
+                                    .frame(height: 100)
+                                    .padding(8)
+                                    .background(Color.white.opacity(0.1))
+                                    .cornerRadius(8)
+                                    .foregroundColor(.white) // Added foreground color for text editor
+                            } else {
+                                Text(notes.isEmpty ? "Add your own notes here..." : notes)
+                                    .font(.body)
+                                    .foregroundColor(notes.isEmpty ? .gray : .white)
+                                    .padding()
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color.white.opacity(0.05))
+                                    .cornerRadius(8)
+                            }
+                        }
+                    }
+                    .padding()
+                }
+            }
+            .padding()
+        }
+        .onAppear {
+            self.notes = milestone.user_notes ?? ""
+        }
     }
     
-    func parseReasoning(_ summary: String?) -> [String] {
-        guard let summary = summary else { return [] }
-        // Split by newline and clean up common bullet characters
+    // ... Helpers (statusColor, parseReasoning) remain same ...
+    var statusColor: Color {
+        switch milestone.status {
+        case "completed": return Color.green
+        case "current": return Color.blue
+        case "locked": return Color.gray
+        default: return Color.gray
+        }
+    }
+    
+    func parseReasoning(_ summary: String) -> [String] {
         let lines = summary.components(separatedBy: "\n")
         return lines.compactMap { line in
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -282,8 +426,8 @@ struct CreditAgentView: View {
         }
     }
 }
-
-// Helper for Hex Colors
+ 
+// Helper for Hex Colors (unchanged)
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)

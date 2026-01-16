@@ -34,6 +34,17 @@ class AgentService: ObservableObject {
     }
     
     @MainActor
+    func updateMilestone(_ milestone: Milestone, status: String? = nil, spendingCurrent: Double? = nil, notes: String? = nil, manualCompletion: Bool? = nil) async {
+        do {
+            try await APIService.shared.updateMilestone(id: milestone.id, status: status, spendingCurrent: spendingCurrent, notes: notes, manualCompletion: manualCompletion)
+            // Refresh state to reflect changes
+            await refreshState()
+        } catch {
+            print("Error updating milestone: \(error)")
+        }
+    }
+    
+    @MainActor
     func startPolling() async {
         // Initial fetch
         await refreshState()

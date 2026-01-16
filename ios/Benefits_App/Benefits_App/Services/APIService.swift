@@ -577,12 +577,45 @@ extension APIService {
         
         return try JSONDecoder().decode(AgentPublicState.self, from: data)
     }
+    func updateMilestone(id: String, status: String? = nil, spendingCurrent: Double? = nil, notes: String? = nil, manualCompletion: Bool? = nil) async throws {
+        guard let url = URL(string: "\(baseURL)/agent/milestone/\(id)/update") else {
+            throw URLError(.badURL)
+        }
+        
+        var body: [String: Any] = [:]
+        if let s = status { body["status"] = s }
+        if let sc = spendingCurrent { body["spending_current"] = sc }
+        if let n = notes { body["user_notes"] = n }
+        if let mc = manualCompletion { body["manual_completion"] = mc }
+        
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+        let (_, response) = try await performRequest(url: url, method: "POST", body: jsonData)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            throw URLError(.badServerResponse)
+        }
+    }
 }
 
 // MARK: - Agent Models
 
+struct Milestone: Codable, Identifiable {
+    let id: String
+    let title: String
+    let description: String
+    var status: String // "completed", "current", "locked"
+    let date: String?
+    let icon: String
+    // Phase 3 Fields
+    let spending_goal: Double?
+    var spending_current: Double?
+    var user_notes: String?
+    var manual_completion: Bool?
+}
+
 struct AgentPublicState: Codable {
     let target_goal: String
+    let roadmap: [Milestone]? // Optional to be safe with old data
     let progress_percentage: Int?
     let next_action: String?
     let action_date: String?

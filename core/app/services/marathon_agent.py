@@ -91,8 +91,14 @@ class MarathonAgent:
             # Or usually goal is set once. Let's look for it in Public State or User Profile.
             public_ref = auth.db.collection('users').document(user_id).collection('public_agent_state').document('main')
             public_doc = public_ref.get()
+            
+            roadmap_context = "No previous roadmap."
             if public_doc.exists:
-                current_goal = public_doc.to_dict().get('target_goal', current_goal)
+                data = public_doc.to_dict()
+                current_goal = data.get('target_goal', current_goal)
+                existing_roadmap = data.get('roadmap', [])
+                if existing_roadmap:
+                    roadmap_context = json.dumps(existing_roadmap, indent=2)
 
             prompt = f"""
             You are 'CreditAgent', a long-term strategist for this user.
@@ -102,30 +108,55 @@ class MarathonAgent:
             - Current Cards: {cards_str}
             {constraints_str}
             
-            THOUGHT HISTORY (Encoded context from previous runs):
+            THOUGHT HISTORY:
             "{thought_signature}"
             
-            TASK:
-            1. 🌍 SEARCH: Use Google Search to check for NEW, highly relevant credit card offers that match the user's goal.
-            2. 🧠 ANALYZE: Check user progress.
-            3. 🗣️ COMMUNICATE: Generate a public plan.
+            CURRENT ROADMAP STATUS:
+            {roadmap_context}
             
-            OUTPUT RULES (CRITICAL):
-            - **Google Search**: You MUST use the search tool to verify active offers.
-            - **Concise UI**: The 'reasoning_summary' will be displayed on a MOBILE APP dashboard.
-              - Keep it SHORT.
-              - Use BULLET POINTS (•) for clarity.
-              - No fluff. Direct advice only.
-              - Max 3-4 bullet points.
+            TASK:
+            1. 🌍 SEARCH: Check for offers.
+            2. 🧠 ANALYZE: Review progress and the Current Roadmap.
+            3. 🛣️ UPDATE ROADMAP:
+               - If the user completed the 'current' milestone (e.g. got the card), mark it 'completed'.
+               - Create the NEXT 'current' milestone.
+               - Plan 3-5 future 'locked' milestones to show a long-term path (e.g. "Wait 3 months", "Apply for Card Y", "Book Flight").
+               - The roadmap should be substantial: Completed -> Current -> Locked -> Locked -> Locked.
+            
+            OUTPUT RULES:
+            - **Google Search**: Verify offers.
+            - **Milestones**:
+              - `status`: "completed" (green), "current" (blue/active), "locked" (gray/future).
+              - `icon`: Use SF Symbols (e.g., "checkmark.circle.fill", "creditcard.fill", "airplane", "clock.fill").
+              - `spending_goal`: If the milestone involves a spending requirement (e.g. "Spend $4000 in 3 months"), set this to the float value (e.g. 4000.0). Otherwise null.
             
             OUTPUT JSON:
             {{
-                "thought_signature": "Comprehensive summary of reasoning to persist...",
+                "thought_signature": "Summary...",
                 "public_plan": {{
+                    "target_goal": "{current_goal}",
                     "progress_percentage": 50,
-                    "reasoning_summary": "• Point 1\\n• Point 2\\n• Point 3",
-                    "next_action": "Actionable step...",
-                    "action_date": "YYYY-MM-DD"
+                    "roadmap": [
+                        {{
+                            "id": "1",
+                            "title": "Opened Chase Sapphire",
+                            "description": "You started your journey!",
+                            "status": "completed",
+                            "icon": "checkmark.circle.fill"
+                        }},
+                        {{
+                            "id": "2",
+                            "title": "Apply for Citi Strata",
+                            "description": "75k bonus available. Transfer partner to ANA.",
+                            "status": "current",
+                            "icon": "creditcard.fill",
+                            "spending_goal": 4000.0,
+                            "spending_current": 0.0
+                        }}
+                    ],
+                    "reasoning_summary": "• Point 1\\n• Point 2",
+                    "next_action": "Apply for Citi Strata",
+                    "action_date": "2026-01-16"
                 }}
             }}
             """

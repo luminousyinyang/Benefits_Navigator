@@ -110,11 +110,31 @@ class AgentPrivateState(BaseModel):
     last_run_date: str # ISO
     next_scheduled_action: str | None = None # ISO
 
+class Milestone(BaseModel):
+    id: str
+    title: str
+    description: str
+    status: str # "completed", "current", "locked"
+    date: str | None = None
+    icon: str = "star.fill" # SF Symbol name
+    # New Fields for Phase 3
+    spending_goal: float | None = None
+    spending_current: float | None = None
+    user_notes: str | None = None
+    manual_completion: bool = False
+
+class MilestoneUpdateRequest(BaseModel):
+    status: str | None = None
+    spending_current: float | None = None
+    user_notes: str | None = None
+    manual_completion: bool | None = None
+
 class AgentPublicState(BaseModel):
     target_goal: str
+    roadmap: list[Milestone] = []
     progress_percentage: int | None = 0
-    next_action: str | None = "Analyzing..."
-    action_date: str | None = None # ISO
+    next_action: str | None = "Analyzing..." # Kept for backward compatibility
+    action_date: str | None = None # Kept for backward compatibility
     reasoning_summary: str | None = "Agent is starting..."
     status: str | None = None # "thinking", "idle"
 
