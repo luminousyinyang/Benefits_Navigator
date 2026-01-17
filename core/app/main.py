@@ -128,7 +128,7 @@ def update_user_me(updates: dict, current_user: dict = Depends(get_current_user)
     try:
         uid = current_user['uid']
         # Filter allowed keys
-        allowed_keys = {'first_name', 'last_name', 'email', 'goals_preferences', 'financial_details'}
+        allowed_keys = {'first_name', 'last_name', 'email', 'financial_details'}
         filtered_updates = {k: v for k, v in updates.items() if k in allowed_keys}
         
         if not filtered_updates:
@@ -419,8 +419,20 @@ def get_recommendation(request: RecommendationRequest, current_user: dict = Depe
         # User Context
         user_context = ""
         user_profile = auth.get_user_profile(current_user['uid'])
-        if user_profile.get('goals_preferences'):
-             user_context += f"\nUSER GOALS: {user_profile['goals_preferences']}"
+
+        # START CHANGE: Fetch Current Goal from Agent State (Roadmap)
+        try:
+            agent_state_ref = auth.db.collection('users').document(current_user['uid']).collection('public_agent_state').document('main')
+            agent_state_doc = agent_state_ref.get()
+            if agent_state_doc.exists:
+                agent_data = agent_state_doc.to_dict()
+                current_goal = agent_data.get('target_goal')
+                if current_goal:
+                    user_context += f"\nCURRENT FINANCIAL GOAL: {current_goal}"
+        except Exception as e:
+            print(f"Error fetching agent goal for recommendation: {e}")
+        # END CHANGE
+
         if user_profile.get('financial_details'):
              user_context += f"\nFINANCIAL CONTEXT: {user_profile['financial_details']}"
 

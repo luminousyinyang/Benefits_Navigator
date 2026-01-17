@@ -252,9 +252,9 @@ def start_scheduler():
     trigger_prices = CronTrigger(hour=0, minute=0)
     scheduler.add_job(check_price_drops, trigger_prices, id='daily_price_check')
     
-    # Schedule: Daily at Midnight (Marathon Agent)
-    trigger_agent = CronTrigger(hour=0, minute=0)
-    scheduler.add_job(run_daily_marathon, trigger_agent, id='daily_marathon_agent')
+    # Schedule: Weekly on Monday at Midnight (Marathon Agent - Deep Search)
+    trigger_agent = CronTrigger(day_of_week='mon', hour=0, minute=0)
+    scheduler.add_job(run_daily_marathon, trigger_agent, id='weekly_marathon_agent')
     
     scheduler.start()
     print("📅 Scheduler started: Monthly card updates & Daily price checks active.")

@@ -26,7 +26,6 @@ class UserProfile(BaseModel):
     onboarded: bool = False
     total_cashback: float = 0.0
     top_retailer: str = "Must do more shopping!"
-    goals_preferences: str | None = None
     financial_details: str | None = None
 
 class Benefit(BaseModel):
@@ -129,6 +128,15 @@ class MilestoneUpdateRequest(BaseModel):
     user_notes: str | None = None
     manual_completion: bool | None = None
 
+class OptionalTask(BaseModel):
+    id: str
+    title: str
+    description: str
+    icon: str # SF Symbol
+    impact: str # e.g. "Save ~$200/mo"
+    category: str # "Savings", "Credit Health", "Lifestyle"
+    status: str = "active" # "active", "completed", "dismissed"
+
 class AgentPublicState(BaseModel):
     target_goal: str
     roadmap: list[Milestone] = []
@@ -137,6 +145,7 @@ class AgentPublicState(BaseModel):
     action_date: str | None = None # Kept for backward compatibility
     reasoning_summary: str | None = "Agent is starting..."
     status: str | None = None # "thinking", "idle"
+    optional_tasks: list[OptionalTask] = [] # New Field
 
 class AgentStartRequest(BaseModel):
     goal: str

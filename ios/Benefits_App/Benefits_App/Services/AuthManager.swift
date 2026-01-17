@@ -135,12 +135,12 @@ class AuthManager: ObservableObject {
         }
     }
     
-    func updateProfile(firstName: String, lastName: String, email: String, goalsPreferences: String? = nil, financialDetails: String? = nil) async throws {
+    func updateProfile(firstName: String, lastName: String, email: String, financialDetails: String? = nil) async throws {
         // Check if email is changing
         let isEmailChanging = self.userProfile?.email != email
         
         // Perform update
-        let updatedProfile = try await APIService.shared.updateProfile(firstName: firstName, lastName: lastName, email: email, goalsPreferences: goalsPreferences, financialDetails: financialDetails)
+        let updatedProfile = try await APIService.shared.updateProfile(firstName: firstName, lastName: lastName, email: email, financialDetails: financialDetails)
         
         DispatchQueue.main.async {
             self.userProfile = updatedProfile

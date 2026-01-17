@@ -96,8 +96,6 @@ def update_user_profile(uid: str, updates: dict):
             firestore_updates['first_name'] = updates['first_name']
         if 'last_name' in updates:
             firestore_updates['last_name'] = updates['last_name']
-        if 'goals_preferences' in updates:
-            firestore_updates['goals_preferences'] = updates['goals_preferences']
         if 'financial_details' in updates:
             firestore_updates['financial_details'] = updates['financial_details']
             

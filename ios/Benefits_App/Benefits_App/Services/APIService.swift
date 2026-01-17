@@ -148,7 +148,7 @@ class APIService {
         }
     }
     
-    func updateProfile(firstName: String, lastName: String, email: String, goalsPreferences: String? = nil, financialDetails: String? = nil) async throws -> UserProfile {
+    func updateProfile(firstName: String, lastName: String, email: String, financialDetails: String? = nil) async throws -> UserProfile {
          guard let url = URL(string: "\(baseURL)/me") else {
              throw URLError(.badURL)
          }
@@ -159,7 +159,6 @@ class APIService {
              "email": email
          ]
          
-         if let goals = goalsPreferences { body["goals_preferences"] = goals }
          if let financial = financialDetails { body["financial_details"] = financial }
          
          let jsonData = try JSONSerialization.data(withJSONObject: body)
@@ -403,7 +402,6 @@ struct UserProfile: Codable {
     let onboarded: Bool?
     let total_cashback: Double?
     let top_retailer: String?
-    let goals_preferences: String?
     let financial_details: String?
 }
 
@@ -595,6 +593,20 @@ extension APIService {
             throw URLError(.badServerResponse)
         }
     }
+    
+    func completeTask(taskId: String) async throws {
+        // Encoded task ID just in case
+        guard let encodedId = taskId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: "\(baseURL)/agent/tasks/\(encodedId)/complete") else {
+            throw URLError(.badURL)
+        }
+        
+        let (_, response) = try await performRequest(url: url, method: "POST")
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            throw URLError(.badServerResponse)
+        }
+    }
 }
 
 // MARK: - Agent Models
@@ -613,6 +625,16 @@ struct Milestone: Codable, Identifiable {
     var manual_completion: Bool?
 }
 
+struct OptionalTaskModel: Codable, Identifiable {
+    let id: String
+    let title: String
+    let description: String
+    let icon: String // SF Symbol
+    let impact: String
+    let category: String
+    let status: String
+}
+
 struct AgentPublicState: Codable {
     let target_goal: String
     let roadmap: [Milestone]? // Optional to be safe with old data
@@ -620,5 +642,6 @@ struct AgentPublicState: Codable {
     let next_action: String?
     let action_date: String?
     let reasoning_summary: String?
-    let status: String? 
+    let status: String?
+    let optional_tasks: [OptionalTaskModel]? // New Field
 }

@@ -29,19 +29,25 @@ class AgentService: ObservableObject {
     
     func startAgent(goal: String) async throws {
         try await APIService.shared.startAgent(goal: goal)
-        // Start polling for updates
-        await startPolling()
+        // Start polling for updates (non-blocking)
+        Task { await startPolling() }
     }
     
     @MainActor
     func updateMilestone(_ milestone: Milestone, status: String? = nil, spendingCurrent: Double? = nil, notes: String? = nil, manualCompletion: Bool? = nil) async {
         do {
             try await APIService.shared.updateMilestone(id: milestone.id, status: status, spendingCurrent: spendingCurrent, notes: notes, manualCompletion: manualCompletion)
-            // Refresh state to reflect changes
-            await refreshState()
+            // Start polling to catch the "thinking" -> "idle" transition and update UI
+            Task { await startPolling() }
         } catch {
             print("Error updating milestone: \(error)")
         }
+    }
+    
+    @MainActor
+    func completeTask(_ taskId: String) async throws {
+        try await APIService.shared.completeTask(taskId: taskId)
+        Task { await startPolling() }
     }
     
     @MainActor

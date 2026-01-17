@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Header, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Header, Depends, BackgroundTasks
 from typing import List, Dict, Any
 from services.gemini_service import GeminiService
 from firebase_admin import auth as firebase_auth
@@ -30,6 +30,7 @@ def get_current_user_uid(authorization: str = Header(...)):
 
 @router.post("/upload")
 async def upload_statement(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     uid: str = Depends(get_current_user_uid)
 ):
@@ -38,6 +39,8 @@ async def upload_statement(
     """
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
+    
+
     
     try:
         # Read file bytes
@@ -242,10 +245,15 @@ async def upload_statement(
             traceback.print_exc()
 
         
+        # Trigger Agent to analyze new spending
+        from services.marathon_agent import MarathonAgent
+        agent = MarathonAgent()
+        background_tasks.add_task(agent.run_agent_cycle, uid)
+        
         return {
             "message": "Statement processed successfully",
             "count": saved_count,
-            "data": transactions # Optional: return data for immediate UI update
+            "data": transactions
         }
         
     except Exception as e:

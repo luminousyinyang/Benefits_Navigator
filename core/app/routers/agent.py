@@ -70,6 +70,7 @@ def get_agent_state(current_user: dict = Depends(get_current_user)):
 async def update_milestone(
     milestone_id: str,
     update_data: MilestoneUpdateRequest,
+    background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user)
 ):
     """Update progress, notes, or status of a specific milestone."""
@@ -107,12 +108,60 @@ async def update_milestone(
              milestone.status = "completed"
              
         # Save back to Firestore
-        state.roadmap[milestone_index] = milestone
-        # Use .dict() or .model_dump() depending on Pydantic version (v1 vs v2). models.py seems to imply v1 or compatible.
+        # Update status to thinking BEFORE launching background task
+        # This ensures the client sees "thinking" immediately upon return
+        state.status = "thinking"
         public_ref.set(state.dict(), merge=True)
         
-        return {"status": "success", "milestone": milestone}
+        # Trigger Agent to re-evaluate based on user update
+        agent = MarathonAgent()
+        background_tasks.add_task(agent.run_agent_cycle, uid)
         
+        return {"status": "success", "milestone": milestone}
+
     except Exception as e:
         print(f"Error updating milestone: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/tasks/{task_id}/complete")
+async def complete_optional_task(
+    task_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user)
+):
+    """Marks a side quest as complete and triggers the agent."""
+    try:
+        uid = current_user['uid']
+        public_ref = auth.db.collection('users').document(uid).collection('public_agent_state').document('main')
+        public_doc = public_ref.get()
+        
+        if not public_doc.exists:
+            raise HTTPException(status_code=404, detail="Agent state not found")
+            
+        data = public_doc.to_dict()
+        state = AgentPublicState(**data)
+        
+        # Remove the task from the list
+        original_count = len(state.optional_tasks)
+        state.optional_tasks = [t for t in state.optional_tasks if t.id != task_id]
+        
+        if len(state.optional_tasks) == original_count:
+             raise HTTPException(status_code=404, detail="Task not found")
+             
+        # Set status to thinking and save
+        state.status = "thinking"
+        # Save
+        public_ref.set(state.dict(), merge=True)
+        
+        # Trigger Agent
+        print(f"Side Quest {task_id} completed for {uid}. Triggering agent...")
+        agent = MarathonAgent()
+        background_tasks.add_task(agent.run_agent_cycle, uid)
+        
+        return {"status": "success", "message": "Quest completed!"}
+        
+    except Exception as e:
+        print(f"Error completing task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+        
+

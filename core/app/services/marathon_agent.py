@@ -100,12 +100,21 @@ class MarathonAgent:
                 if existing_roadmap:
                     roadmap_context = json.dumps(existing_roadmap, indent=2)
 
+            # Retrieve Financial Context
+            financial_profile_str = ""
+            if user_data:
+                financial_profile_str = f"""
+                FINANCIAL PROFILE:
+                - Details: {user_data.get('financial_details', 'None')}
+                """
+
             prompt = f"""
             You are 'CreditAgent', a long-term strategist for this user.
             CURRENT GOAL: "{current_goal}"
             
             USER CONTEXT:
             - Current Cards: {cards_str}
+            {financial_profile_str}
             {constraints_str}
             
             THOUGHT HISTORY:
@@ -115,20 +124,29 @@ class MarathonAgent:
             {roadmap_context}
             
             TASK:
-            1. 🌍 SEARCH: Check for offers.
-            2. 🧠 ANALYZE: Review progress and the Current Roadmap.
-            3. 🛣️ UPDATE ROADMAP:
-               - If the user completed the 'current' milestone (e.g. got the card), mark it 'completed'.
-               - Create the NEXT 'current' milestone.
-               - Plan 3-5 future 'locked' milestones to show a long-term path (e.g. "Wait 3 months", "Apply for Card Y", "Book Flight").
-               - The roadmap should be substantial: Completed -> Current -> Locked -> Locked -> Locked.
-            
+            1. 🔍 CHECK USER UPDATES: Scan current milestones for `user_notes`. If the user has flagged a roadblock (e.g., "Rejected", "Too expensive", "Don't want to"), you MUST adjust the plan accordingly.
+            2. 🌍 DEEP WEB SEARCH: 
+               - If this is a **NEW GOAL** (roadmap empty), search extensively to build the best strategy from scratch.
+               - If this is a **WEEKLY RUN**, search for *new* offers or changes that might accelerate the goal.
+               - Search for solutions to any user roadblocks.
+            3. 🧠 ANALYZE: Review progress, spending habits, and the Current Roadmap against search results.
+            4. 🛣️ UPDATE ROADMAP:
+               - Update milestones based on new findings or user updates.
+               - **IMPORTANT**: If a milestone is "current" but the user says they are stuck, either provide a solution in `description` or replace it with a new step.
+            5. ⚔️ SIDE QUESTS (OPTIONAL TASKS):
+               - Identify 2-3 "Side Quests" based on their financial profile or potential bad habits (e.g., "Dining out too much? -> Cook at home", "Unused Subscriptions? -> Cancel").
+               - Also look for "Card Perks" side quests (e.g., "Activate Amex Offers", "Use your $50 Hotel Credit").
+
             OUTPUT RULES:
             - **Google Search**: Verify offers.
-            - **Milestones**:
-              - `status`: "completed" (green), "current" (blue/active), "locked" (gray/future).
-              - `icon`: Use SF Symbols (e.g., "checkmark.circle.fill", "creditcard.fill", "airplane", "clock.fill").
-              - `spending_goal`: If the milestone involves a spending requirement (e.g. "Spend $4000 in 3 months"), set this to the float value (e.g. 4000.0). Otherwise null.
+            - **Milestones**: Same rules as before.
+            - **Optional Tasks**:
+              - `id`: Unique string.
+              - `title`: Short action title.
+              - `description`: Why they should do it.
+              - `impact`: Estimated savings or value (e.g. "$20/mo").
+              - `category`: "Savings" | "Credit Health" | "Lifestyle".
+              - `icon`: SF Symbol (e.g. "fork.knife", "dollarsign.circle", "tag.fill").
             
             OUTPUT JSON:
             {{
@@ -136,25 +154,18 @@ class MarathonAgent:
                 "public_plan": {{
                     "target_goal": "{current_goal}",
                     "progress_percentage": 50,
-                    "roadmap": [
+                    "roadmap": [...],
+                    "optional_tasks": [
                         {{
-                            "id": "1",
-                            "title": "Opened Chase Sapphire",
-                            "description": "You started your journey!",
-                            "status": "completed",
-                            "icon": "checkmark.circle.fill"
-                        }},
-                        {{
-                            "id": "2",
-                            "title": "Apply for Citi Strata",
-                            "description": "75k bonus available. Transfer partner to ANA.",
-                            "status": "current",
-                            "icon": "creditcard.fill",
-                            "spending_goal": 4000.0,
-                            "spending_current": 0.0
+                            "id": "sq_1",
+                            "title": "Cook Dinner 3x/Week",
+                            "description": "You spent $450 on dining last week. Cooking could save you significantly.",
+                            "impact": "Save ~$200/mo",
+                            "category": "Lifestyle",
+                            "icon": "fork.knife"
                         }}
                     ],
-                    "reasoning_summary": "• Point 1\\n• Point 2",
+                    "reasoning_summary": "...",
                     "next_action": "Apply for Citi Strata",
                     "action_date": "2026-01-16"
                 }}

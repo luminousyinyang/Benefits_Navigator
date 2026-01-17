@@ -6,6 +6,7 @@ struct CreditAgentView: View {
     @State private var isStarting = false
     @State private var selectedMilestone: Milestone? = nil
     @State private var isNewGoalPresented = false
+    @State private var showSideQuests = false
     
     var body: some View {
         ZStack {
@@ -13,55 +14,86 @@ struct CreditAgentView: View {
             LinearGradient(colors: [Color(hex: "0F172A"), Color(hex: "1E293B")], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
             
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Header
-                    HStack {
-                        Text("Credit Agent")
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundColor(.white)
-                        Spacer()
-                        if agentService.isLoading {
-                            ProgressView()
-                                .tint(.white)
-                        } else {
-                            Button(action: {
-                                isNewGoalPresented = true
-                            }) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "plus")
-                                    Text("New Goal")
-                                        .fontWeight(.semibold)
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(20)
-                            }
+            VStack(spacing: 0) { // Main fixed container
+                // FIXED Header
+                HStack {
+                    Text("Goal Roadmap")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundColor(.white)
+                    Spacer()
+                    Button(action: {
+                        isNewGoalPresented = true
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "plus")
+                            Text("New Goal")
+                                .fontWeight(.semibold)
                         }
-                    }
-                    .padding(.top, 20)
-                    
-                    if let state = agentService.state {
-                        // Dashboard Mode
-                        dashboardView(state: state)
-                    } else {
-                        // Onboarding Mode
-                        onboardingView
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(20)
                     }
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.top, 20)
+                .padding(.bottom, 10)
+                
+                // Content Area
+                if let state = agentService.state {
+                    // Dashboard Mode (Fixed layout)
+                    dashboardView(state: state)
+                        .blur(radius: (state.status == "thinking") ? 10 : 0) // Blur content when thinking
+                } else {
+                    // Onboarding Mode (Scrollable)
+                    ScrollView {
+                        onboardingView
+                            .padding()
+                    }
+                }
             }
-        }
-        .onAppear {
-            Task {
-                await agentService.startPolling()
+            // Move Thinking Overlay to HERE (Top of ZStack) to cover everything including header
+            if let state = agentService.state, state.status == "thinking" {
+                Color.black.opacity(0.6).ignoresSafeArea() // Darker opacity
+                
+                VStack(spacing: 20) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .tint(.white)
+                    
+                    Text("Re-evaluating Roadmap...")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Text("Analyzing new data to update your plan.")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                .padding(40)
+                .background(Color(hex: "0F172A").opacity(0.95))
+                .cornerRadius(20)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                )
+                .transition(.opacity) // Smooth transition
             }
         }
         .sheet(isPresented: $isNewGoalPresented) {
             NewGoalView(agentService: agentService)
         }
+        .sheet(isPresented: $showSideQuests) {
+            if let tasks = agentService.state?.optional_tasks {
+                SideQuestsView(tasks: tasks)
+                    .presentationDetents([.medium, .large])
+            }
+        }
+    .onAppear {
+        Task {
+            await agentService.startPolling()
+        }
+    }
     }
     
     // ... Onboarding View remains unchanged ...
@@ -135,49 +167,85 @@ struct CreditAgentView: View {
     
     func dashboardView(state: AgentPublicState) -> some View {
         VStack(spacing: 20) {
-            // Goal Header
+            // FIXED Goal Header
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "flag.fill")
-                        .foregroundColor(.blue)
-                    Text("CURRENT GOAL")
-                        .font(.caption.bold())
-                        .foregroundColor(.gray)
-                    Spacer()
-                }
                 
-                Text(state.target_goal)
-                    .font(.title3.bold())
-                    .foregroundColor(.white)
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Image(systemName: "flag.fill")
+                                .foregroundColor(.blue)
+                            Text("CURRENT GOAL")
+                                .font(.caption.bold())
+                                .foregroundColor(.gray)
+                        }
+                        
+                        Text(state.target_goal)
+                            .font(.title3.bold())
+                            .foregroundColor(.white)
+                            .lineLimit(2)
+                    }
+                    Spacer()
+                    
+                    // Side Quests Button
+                    if let tasks = state.optional_tasks, !tasks.isEmpty {
+                        Button(action: { showSideQuests = true }) {
+                            VStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.bubble.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.yellow)
+                                Text("Side Quests")
+                                    .font(.caption2.bold())
+                                    .foregroundColor(.yellow)
+                            }
+                            .padding(8)
+                            .background(Color.yellow.opacity(0.15))
+                            .cornerRadius(12)
+                        }
+                    }
+                }
             }
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 20)
                     .fill(Color(hex: "1E293B"))
             )
+            .padding(.horizontal)
             
-            // Roadmap
-            if let roadmap = state.roadmap, !roadmap.isEmpty {
-                RoadmapPathView(milestones: roadmap) { selected in
-                    self.selectedMilestone = selected
+            // Scrollable Roadmap Panel
+            ScrollView {
+                VStack(spacing: 20) {
+                    if let roadmap = state.roadmap, !roadmap.isEmpty {
+                        RoadmapPathView(milestones: roadmap) { selected in
+                            self.selectedMilestone = selected
+                        }
+                    } else {
+                        // Fallback
+                        Text("Refresh to see your Roadmap!")
+                            .foregroundColor(.gray)
+                            .padding()
+                    }
+                    
+                    if state.status == "thinking" {
+                        HStack {
+                            ProgressView()
+                                .tint(.white)
+                            Text("Agent is updating plan...")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                        .padding()
+                    }
+                    
+                    // Bottom padding for scroll
+                    Color.clear.frame(height: 40)
                 }
-            } else {
-                // Fallback for old state or empty roadmap
-                Text("Refresh to see your Roadmap!")
-                    .foregroundColor(.gray)
-                    .padding()
+                .padding(.top, 20)
             }
-            
-            if state.status == "thinking" {
-                HStack {
-                    ProgressView()
-                        .tint(.white)
-                    Text("Agent is updating plan...")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-                .padding()
-            }
+            .background(Color(hex: "020617").opacity(0.3)) // Dark background for roadmap track
+            .cornerRadius(24) // Rounded corners for the panel
+            .padding(.horizontal)
+            .padding(.bottom, 20)
         }
         .sheet(item: $selectedMilestone) { milestone in
             MilestoneDetailView(milestone: milestone, reasoning: (milestone.status == "current") ? state.reasoning_summary : nil, agentService: agentService)
@@ -248,6 +316,7 @@ struct MilestoneDetailView: View {
     let milestone: Milestone
     let reasoning: String?
     @ObservedObject var agentService: AgentService
+    @Environment(\.dismiss) var dismiss
     
     @State private var notes: String = ""
     @State private var isNotesEditing = false
@@ -287,7 +356,10 @@ struct MilestoneDetailView: View {
                         // Action Button (Mark Complete)
                         if milestone.status == "current" {
                             Button(action: {
-                                Task { await agentService.updateMilestone(milestone, manualCompletion: true) }
+                                Task { 
+                                    await agentService.updateMilestone(milestone, manualCompletion: true)
+                                    dismiss()
+                                }
                             }) {
                                 HStack {
                                     Image(systemName: "checkmark.circle.fill")
@@ -358,38 +430,40 @@ struct MilestoneDetailView: View {
                             }
                         }
                         
-                        // Notes Section
+                        // Provide an Update Section
                         VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text("My Notes")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                Spacer()
-                                Button(isNotesEditing ? "Save" : "Edit") {
-                                    if isNotesEditing {
-                                        Task { await agentService.updateMilestone(milestone, notes: notes) }
-                                    }
-                                    isNotesEditing.toggle()
-                                }
-                                .font(.subheadline.bold())
-                                .foregroundColor(.blue)
-                            }
+                            Text("Provide an update")
+                                .font(.headline)
+                                .foregroundColor(.white)
                             
-                            if isNotesEditing {
-                                TextEditor(text: $notes)
-                                    .frame(height: 100)
-                                    .padding(8)
-                                    .background(Color.white.opacity(0.1))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.white) // Added foreground color for text editor
-                            } else {
-                                Text(notes.isEmpty ? "Add your own notes here..." : notes)
-                                    .font(.body)
-                                    .foregroundColor(notes.isEmpty ? .gray : .white)
+                            Text("Stuck? Need a new strategy? Let the agent know.")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            
+                            TextEditor(text: $notes)
+                                .frame(height: 100)
+                                .padding(8)
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(8)
+                                .foregroundColor(.white)
+                            
+                            Button(action: {
+                                Task {
+                                    await agentService.updateMilestone(milestone, notes: notes)
+                                    // Dismiss popup immediately
+                                    // Since this is inside MilestoneDetailView presented via sheet(item: $selectedMilestone) in CreditAgentView
+                                    // We need to dismiss. But `selectedMilestone` is State in parent. 
+                                    // The cleanest way is to use @Environment(\.dismiss)
+                                    dismiss()
+                                }
+                            }) {
+                                Text("Submit Update")
+                                    .bold()
+                                    .frame(maxWidth: .infinity)
                                     .padding()
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Color.white.opacity(0.05))
-                                    .cornerRadius(8)
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(12)
                             }
                         }
                     }
@@ -451,5 +525,105 @@ extension Color {
             blue: Double(b) / 255,
             opacity: Double(a) / 255
         )
+    }
+}
+
+struct SideQuestsView: View {
+    let tasks: [OptionalTaskModel]
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        ZStack {
+            Color(hex: "0F172A").ignoresSafeArea()
+            
+            VStack(spacing: 20) {
+                // Header
+                HStack {
+                    Text("Side Quests")
+                        .font(.title.bold())
+                        .foregroundColor(.white)
+                    Spacer()
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.gray)
+                    }
+                }
+                .padding(.top, 20)
+                
+                ScrollView {
+                    VStack(spacing: 16) {
+                        ForEach(tasks) { task in
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(alignment: .top, spacing: 12) {
+                                    Image(systemName: task.icon)
+                                        .font(.title2)
+                                        .foregroundColor(.yellow)
+                                        .frame(width: 40, height: 40)
+                                        .background(Color.yellow.opacity(0.1))
+                                        .clipShape(Circle())
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(task.title)
+                                            .font(.headline)
+                                            .foregroundColor(.white)
+                                        
+                                        Text(task.category.capitalized)
+                                            .font(.caption.bold())
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 2)
+                                            .background(Color.white.opacity(0.1))
+                                            .cornerRadius(8)
+                                            .foregroundColor(.gray)
+                                    }
+                                    Spacer()
+                                    // Impact Badge
+                                    Text(task.impact)
+                                        .font(.caption.bold())
+                                        .foregroundColor(.green)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.green.opacity(0.1))
+                                        .cornerRadius(8)
+                                }
+                                
+                                Text(task.description)
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                
+                                Button(action: {
+                                    Task {
+                                        do {
+                                            try await AgentService.shared.completeTask(task.id)
+                                            dismiss()
+                                        } catch {
+                                            print("Error completing task: \(error)")
+                                        }
+                                    }
+                                }) {
+                                    Text("Complete Quest")
+                                        .font(.headline)
+                                        .foregroundColor(.black)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(Color.yellow)
+                                        .cornerRadius(12)
+                                }
+                            }
+                            .padding()
+                            .background(Color(hex: "1E293B"))
+                            .cornerRadius(16)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                            )
+                        }
+                    }
+                }
+            }
+            .padding()
+        }
     }
 }

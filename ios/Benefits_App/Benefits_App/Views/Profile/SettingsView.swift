@@ -12,7 +12,6 @@ struct SettingsView: View {
     @State private var firstName: String = ""
     @State private var lastName: String = ""
     @State private var email: String = ""
-    @State private var goalsPreferences: String = ""
     @State private var financialDetails: String = ""
     @State private var isLoading = false
     @State private var alertMessage = ""
@@ -30,7 +29,7 @@ struct SettingsView: View {
         isLoading = true
         Task {
             do {
-                try await authManager.updateProfile(firstName: firstName, lastName: lastName, email: email, goalsPreferences: goalsPreferences, financialDetails: financialDetails)
+                try await authManager.updateProfile(firstName: firstName, lastName: lastName, email: email, financialDetails: financialDetails)
                 
                 if isEmailChanging {
                     alertMessage = "Email updated successfully. Please sign in again."
@@ -95,21 +94,6 @@ struct SettingsView: View {
                         
                         Divider().background(Color.gray.opacity(0.3))
                         
-                        // MARK: - Goals & Preferences
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("Goals & Preferences")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.white)
-                            
-                            Text("Tell us what you care about (e.g., earning travel miles, finding low APR, cashback only).")
-                                .font(.system(size: 14))
-                                .foregroundColor(.gray)
-                            
-                            CustomTextEditor(text: $goalsPreferences, placeholder: "I prefer earning miles for upcoming travel...")
-                        }
-                        
-                        Divider().background(Color.gray.opacity(0.3))
-                        
                         // MARK: - Financial Details
                         VStack(alignment: .leading, spacing: 16) {
                             Text("Financial Details")
@@ -146,7 +130,8 @@ struct SettingsView: View {
                         }) {
                             HStack {
                                 Image(systemName: "rectangle.portrait.and.arrow.right")
-                                Text("Sign Out")
+                                .font(.system(size: 16, weight: .bold))
+                            Text("Sign Out")
                             }
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.red)
@@ -168,7 +153,6 @@ struct SettingsView: View {
                 lastName = user.last_name
                 lastName = user.last_name
                 email = user.email ?? ""
-                goalsPreferences = user.goals_preferences ?? ""
                 financialDetails = user.financial_details ?? ""
             }
         }

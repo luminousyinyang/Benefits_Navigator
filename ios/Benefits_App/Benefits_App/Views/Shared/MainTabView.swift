@@ -44,7 +44,7 @@ struct MainTabView: View {
             
             CreditAgentView()
                 .tabItem {
-                    Label("Agent", systemImage: "brain.head.profile")
+                    Label("Goal", systemImage: "map.fill")
                 }
                 .tag(2)
             

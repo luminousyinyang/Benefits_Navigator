@@ -8,7 +8,7 @@ struct RoadmapPathView: View {
     var body: some View {
         GeometryReader { geo in
             let width = geo.size.width
-            let amplitude = (width / 2) - 60 // Leave 60pt margin
+            let amplitude = (width / 2) - 90 // Increased margin to 90 to keep nodes away from edges
             
             ZStack(alignment: .top) {
                 // Draw the Path Line with Gradient
@@ -157,9 +157,17 @@ struct MilestoneNodeView: View {
             VStack(spacing: 4) {
                 Text(milestone.title)
                     .font(.caption.bold())
-                    .foregroundColor(milestone.status == "current" ? .white : .gray)
+                    .foregroundColor(.white) // Always white for better contrast against dark/colored bg
                     .multilineTextAlignment(.center)
-                    .frame(width: 120)
+                    .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1) // Strong shadow
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.black.opacity(0.4)) // Semi-transparent backing
+                            .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                    )
+                    .frame(width: 140) // Slightly wider
                 
                 if milestone.status == "current" {
                     Text("Current Step")
@@ -169,6 +177,7 @@ struct MilestoneNodeView: View {
                         .padding(.vertical, 2)
                         .background(Color.white)
                         .cornerRadius(8)
+                        .shadow(radius: 2)
                 }
             }
         }
