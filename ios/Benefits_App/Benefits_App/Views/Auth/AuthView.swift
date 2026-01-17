@@ -76,49 +76,7 @@ struct AuthView: View {
                         }
                     }
                     .padding(.horizontal)
-
-                    // Divider
-                    HStack {
-                        VStack { Divider().background(Color.gray) }
-                        Text("Or continue with")
-                            .foregroundColor(.gray)
-                            .font(.subheadline)
-                        VStack { Divider().background(Color.gray) }
-                    }
-                    .padding()
-
-                    // Social Buttons
-                    HStack(spacing: 20) {
-                        Button(action: {}) {
-                            Image(systemName: "applelogo")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(cardBackground)
-                                .cornerRadius(12)
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
-                        }
-
-                        Button(action: {}) {
-                            Image(systemName: "g.circle")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(cardBackground)
-                                .cornerRadius(12)
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
-                        }
-                    }
-                    .padding(.horizontal)
-
-                    // Footer
-                    Text("By continuing, you agree to our Terms of Service and Privacy Policy.")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding()
+                    .padding(.bottom, 40)
                 }
             }
             //.navigationBarHidden(true) // Deprecated, but sticking to existing pattern if needed

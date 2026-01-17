@@ -173,6 +173,8 @@ class AuthManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: kCachedProfile)
         UserDefaults.standard.removeObject(forKey: kCachedCards)
         
+        TransactionService.shared.clearCache()
+        
         APIService.shared.clearSession()
     }
     

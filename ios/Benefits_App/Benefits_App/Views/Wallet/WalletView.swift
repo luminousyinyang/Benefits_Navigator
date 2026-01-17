@@ -47,24 +47,7 @@ struct WalletView: View {
                 }
             }
             
-            // Floating Action Button
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    Button(action: {}) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(width: 60, height: 60)
-                            .background(primaryBlue)
-                            .clipShape(Circle())
-                            .shadow(color: primaryBlue.opacity(0.5), radius: 10, x: 0, y: 5)
-                    }
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 20)
-                }
-            }
+
         }
         .onAppear {
             fetchCards()
@@ -130,18 +113,6 @@ struct WalletView: View {
 
         HStack {
             HStack(spacing: 12) {
-                ZStack(alignment: .bottomTrailing) {
-                    Image(systemName: "person.crop.circle.fill")
-                        .resizable()
-                        .frame(width: 40, height: 40)
-                        .foregroundColor(.gray)
-                    
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 12, height: 12)
-                        .overlay(Circle().stroke(backgroundDark, lineWidth: 2))
-                }
-                
                 Text("Wallet")
                     .font(.title2)
                     .fontWeight(.bold)
@@ -160,14 +131,7 @@ struct WalletView: View {
             }
             .padding(.trailing, 8)
             
-            Button(action: {}) {
-                Image(systemName: "bell.badge")
-                    .font(.system(size: 20))
-                    .foregroundColor(textSecondary)
-                    .padding(10)
-                    .background(cardBackground)
-                    .clipShape(Circle())
-            }
+
         }
         .padding(.horizontal)
         .padding(.top, 10)

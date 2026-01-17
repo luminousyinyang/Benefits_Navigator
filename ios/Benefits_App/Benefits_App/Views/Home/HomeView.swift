@@ -29,7 +29,7 @@ struct HomeView: View {
                     HStack {
                         HStack(spacing: 12) {
                             Button(action: {
-                                selectedTab = 3 // Switch to Profile Tab
+                                selectedTab = 4 // Switch to Profile Tab
                             }) {
                                 ZStack(alignment: .bottomTrailing) {
                                     Image(systemName: "person.crop.circle.fill")
@@ -117,8 +117,17 @@ struct HomeView: View {
                                         }
                                     }
                                     
-                                    Image(systemName: "mic.fill")
-                                        .foregroundColor(.gray)
+                                    if !searchText.isEmpty {
+                                        Button(action: {
+                                            navigateToRecommendation = true
+                                        }) {
+                                            Image(systemName: "arrow.right.circle.fill")
+                                                .foregroundColor(primaryBlue)
+                                                .font(.system(size: 24))
+                                        }
+                                    }
+                                    
+                                    // Mic icon removed
                                 }
                                 .padding()
                                 .background(cardBackground)
@@ -178,7 +187,9 @@ struct HomeView: View {
                             
                             // MARK: - Action Grid
                             HStack(spacing: 16) {
-                                NavigationLink(destination: WalletView()) {
+                                Button(action: {
+                                    selectedTab = 1 // Switch to Wallet Tab
+                                }) {
                                     ActionButton(icon: "creditcard.fill", title: "My Wallet", subtitle: "View Card Benefits", cardBg: cardBackground)
                                 }
                                 NavigationLink(destination: ActionCenterView()) {
@@ -233,9 +244,13 @@ struct HomeView: View {
             .navigationDestination(isPresented: $navigateToRecommendation) {
                 RecommendationView(storeName: searchText, prioritizeCategory: selectedCategory?.rawValue)
             }
+        .onTapGesture {
+            hideKeyboard()
         }
     }
+    }
 }
+
 
 // MARK: - Subviews
 

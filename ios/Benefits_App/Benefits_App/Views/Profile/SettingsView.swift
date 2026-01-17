@@ -156,6 +156,9 @@ struct SettingsView: View {
                 financialDetails = user.financial_details ?? ""
             }
         }
+        .onTapGesture {
+            hideKeyboard()
+        }
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Profile Update"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }

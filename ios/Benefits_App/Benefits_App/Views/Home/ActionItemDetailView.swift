@@ -145,6 +145,9 @@ struct ActionItemDetailView: View {
         }
         .background(backgroundDark.ignoresSafeArea())
         .navigationTitle("Details")
+        .onTapGesture {
+            hideKeyboard()
+        }
     }
     
     func formatDate(_ dateStr: String) -> String {

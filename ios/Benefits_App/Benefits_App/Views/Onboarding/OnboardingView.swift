@@ -349,6 +349,9 @@ struct OnboardingCardsView: View {
         .alert(isPresented: $showingError) {
             Alert(title: Text("Error"), message: Text(errorMessage ?? "Unknown error"), dismissButton: .default(Text("OK")))
         }
+        .onTapGesture {
+            hideKeyboard()
+        }
     }
     
     func updateSuggestions(query: String) {

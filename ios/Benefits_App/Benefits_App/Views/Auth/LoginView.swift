@@ -72,6 +72,9 @@ struct LoginView: View {
             }
             .padding(.horizontal, 24)
         }
+        .onTapGesture {
+            hideKeyboard()
+        }
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Error"), message: Text(errorMessage ?? "Unknown error"), dismissButton: .default(Text("OK")))
         }

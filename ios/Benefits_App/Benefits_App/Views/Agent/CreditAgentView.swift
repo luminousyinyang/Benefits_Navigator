@@ -21,19 +21,21 @@ struct CreditAgentView: View {
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(.white)
                     Spacer()
-                    Button(action: {
-                        isNewGoalPresented = true
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "plus")
-                            Text("New Goal")
-                                .fontWeight(.semibold)
+                    if agentService.state != nil {
+                        Button(action: {
+                            isNewGoalPresented = true
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "plus")
+                                Text("New Goal")
+                                    .fontWeight(.semibold)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(20)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(20)
                     }
                 }
                 .padding(.horizontal)
@@ -93,6 +95,9 @@ struct CreditAgentView: View {
         Task {
             await agentService.startPolling()
         }
+    }
+    .onDisappear {
+        agentService.stopPolling()
     }
     }
     
@@ -309,6 +314,9 @@ struct NewGoalView: View {
         }
         .padding()
         .background(Color(hex: "0F172A").ignoresSafeArea())
+        .onTapGesture {
+            hideKeyboard()
+        }
     }
 }
 
@@ -471,6 +479,10 @@ struct MilestoneDetailView: View {
                 }
             }
             .padding()
+            .padding()
+        }
+        .onTapGesture {
+            hideKeyboard()
         }
         .onAppear {
             self.notes = milestone.user_notes ?? ""
@@ -545,7 +557,7 @@ struct SideQuestsView: View {
                     Spacer()
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
+                            .font(.system(size: 30))
                             .foregroundColor(.gray)
                     }
                 }

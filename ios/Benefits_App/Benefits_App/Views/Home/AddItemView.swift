@@ -79,6 +79,9 @@ struct AddItemView: View {
                 Alert(title: Text("Error"), message: Text(errorMessage ?? ""), dismissButton: .default(Text("OK")))
             }
         }
+        .onTapGesture {
+            hideKeyboard()
+        }
         .onAppear {
              // Default selection
              if let first = authManager.userCards.first {

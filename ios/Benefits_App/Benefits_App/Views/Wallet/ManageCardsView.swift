@@ -48,39 +48,7 @@ struct ManageCardsView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         
-                        // MARK: - Optimizer Banner
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(alignment: .top, spacing: 12) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(primaryBlue)
-                                        .frame(width: 36, height: 36)
-                                    Image(systemName: "sparkles")
-                                        .foregroundColor(.white)
-                                        .font(.system(size: 18))
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Gemini Optimizer Active")
-                                        .font(.system(size: 15, weight: .bold))
-                                        .foregroundColor(.white)
-                                    
-                                    Text("Your wallet is synced. \(authManager.userCards.count) cards are currently optimized for maximum rewards based on your location and spending habits.")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(textSecondary)
-                                        .lineSpacing(2)
-                                }
-                            }
-                        }
-                        .padding(16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(primaryBlue.opacity(0.15))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .stroke(primaryBlue.opacity(0.3), lineWidth: 1)
-                                )
-                        )
+
                         
                         // MARK: - Linked Cards Section
                         VStack(alignment: .leading, spacing: 12) {
@@ -115,18 +83,7 @@ struct ManageCardsView: View {
                             }
                         }
                         
-                        // MARK: - Scan Prompt
-                        VStack(spacing: 8) {
-                            Image(systemName: "camera.viewfinder")
-                                .font(.system(size: 32))
-                                .foregroundColor(textSecondary.opacity(0.5))
-                            
-                            Text("Scan card to add instantly")
-                                .font(.system(size: 13))
-                                .foregroundColor(textSecondary.opacity(0.5))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 20)
+
                         
                     }
                     .padding(.horizontal)
@@ -149,10 +106,7 @@ struct ManageCardsView: View {
                         .cornerRadius(14)
                     }
                     
-                    HStack(spacing: 30) {
-                        BottomAction(icon: "viewfinder", label: "Scan")
-                        BottomAction(icon: "magnifyingglass", label: "Search")
-                    }
+
                 }
                 .padding(.horizontal)
                 .padding(.top, 12)
@@ -162,6 +116,9 @@ struct ManageCardsView: View {
         }
         .onAppear {
             fetchCards()
+        }
+        .onTapGesture {
+            hideKeyboard()
         }
         .sheet(isPresented: $showingAddCardSheet) {
             AddCardSheet(isPresented: $showingAddCardSheet, onAdd: { 
@@ -440,6 +397,9 @@ struct AddCardSheet: View {
         .alert(isPresented: $showingError) {
              Alert(title: Text("Error"), message: Text(errorMessage ?? "Unknown error"), dismissButton: .default(Text("OK")))
         }
+        .onTapGesture {
+            hideKeyboard()
+        }
     }
     
     func updateSuggestions(query: String) {
@@ -615,20 +575,6 @@ struct CardRow: View {
     }
 }
 
-struct BottomAction: View {
-    let icon: String
-    let label: String
-    
-    var body: some View {
-        Button(action: {}) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                Text(label)
-            }
-            .font(.system(size: 13, weight: .medium))
-            .foregroundColor(Color(red: 157/255, green: 168/255, blue: 185/255))
-        }
-    }
-}
+
 
 

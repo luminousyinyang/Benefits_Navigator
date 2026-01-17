@@ -50,27 +50,51 @@ class AgentService: ObservableObject {
         Task { await startPolling() }
     }
     
+    private var pollingTask: Task<Void, Never>?
+
+    @MainActor
+    func stopPolling() {
+        pollingTask?.cancel()
+        pollingTask = nil
+    }
+
     @MainActor
     func startPolling() async {
-        // Initial fetch
-        await refreshState()
+        // Cancel existing
+        stopPolling()
         
-        // Poll while status is "thinking"
-        // We limit to e.g. 60 seconds (30 attempts) to avoid infinite loops
-        var attempts = 0
-        while attempts < 30 {
-            if let currentState = self.state, currentState.status != "thinking" {
-                print("Agent finished thinking. Stopping poll.")
-                break
+        pollingTask = Task {
+            // Initial fetch
+            await refreshState()
+            
+            // If explicit nil state (no agent running), stop immediately
+            if self.state == nil {
+                print("No active agent. Stopping poll.")
+                return
             }
             
-            // Wait 2 seconds
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            
-            // Refresh
-            await refreshState()
-            attempts += 1
+            // Poll while status is "thinking"
+            var attempts = 0
+            while attempts < 30 {
+                if Task.isCancelled { break }
+                
+                if let currentState = self.state, currentState.status != "thinking" {
+                    print("Agent finished thinking. Stopping poll.")
+                    break
+                }
+                
+                // Wait 2 seconds
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                
+                if Task.isCancelled { break }
+                
+                // Refresh
+                await refreshState()
+                attempts += 1
+            }
         }
+        
+        _ = await pollingTask?.result
     }
     
     private func saveCache(_ state: AgentPublicState?) {
