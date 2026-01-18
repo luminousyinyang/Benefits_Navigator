@@ -10,6 +10,8 @@ struct HomeView: View {
     @State private var searchText = ""
     @State private var selectedCategory: ActionCenterView.Category? = nil
     @State private var navigateToRecommendation = false
+    @State private var navigatedStoreName = "" // Preserves search text for navigation
+    @State private var lastRecommendation: [String: Any]? = nil
     
     @EnvironmentObject var authManager: AuthManager
     @Binding var selectedTab: Int
@@ -113,13 +115,19 @@ struct HomeView: View {
                                     .foregroundColor(.white)
                                     .onSubmit {
                                         if !searchText.isEmpty {
+                                            navigatedStoreName = searchText // Capture text
                                             navigateToRecommendation = true
+                                            hideKeyboard()
+                                            searchText = ""
                                         }
                                     }
                                     
                                     if !searchText.isEmpty {
                                         Button(action: {
+                                            navigatedStoreName = searchText // Capture text
                                             navigateToRecommendation = true
+                                            hideKeyboard()
+                                            searchText = ""
                                         }) {
                                             Image(systemName: "arrow.right.circle.fill")
                                                 .foregroundColor(primaryBlue)
@@ -201,24 +209,27 @@ struct HomeView: View {
                             //                        Spacer(minLength: 40)
                             
                             // MARK: - Gemini Insight Card
-                            if let lastRecommendation = UserDefaults.standard.dictionary(forKey: "lastRecommendation") as? [String: Any],
-                               let timestamp = lastRecommendation["timestamp"] as? TimeInterval,
-                               Date().timeIntervalSince1970 - timestamp < 3600 { // 1 Hour Expiration
+                            // Always show card (Persistent)
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "sparkles")
+                                        .font(.system(size: 14))
+                                    Text("GEMINI INSIGHT")
+                                        .font(.system(size: 12, weight: .bold))
+                                }
+                                .foregroundColor(primaryBlue)
                                 
-                                let store = lastRecommendation["store"] as? String ?? "Unknown"
-                                let card = lastRecommendation["card"] as? String ?? "Best Card"
-                                let reward = lastRecommendation["reward"] as? String ?? "Rewards"
-                                
-                                VStack(alignment: .leading, spacing: 12) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "sparkles")
-                                            .font(.system(size: 14))
-                                        Text("GEMINI INSIGHT")
-                                            .font(.system(size: 12, weight: .bold))
-                                    }
-                                    .foregroundColor(primaryBlue)
+                                if let rec = lastRecommendation {
+                                    let store = rec["store"] as? String ?? "your recent trip"
+                                    let card = rec["card"] as? String ?? "Best Card"
+                                    let reward = rec["reward"] as? String ?? "Rewards"
                                     
-                                    Text("Based on your last shopping recommendation you should use your ")
+                                    Text("For your purchase at ")
+                                        .foregroundColor(.gray)
+                                    + Text(store)
+                                        .foregroundColor(.white)
+                                        .fontWeight(.semibold)
+                                    + Text(", you should use your ")
                                         .foregroundColor(.gray)
                                     + Text(card)
                                         .foregroundColor(.white)
@@ -230,18 +241,23 @@ struct HomeView: View {
                                         .fontWeight(.semibold)
                                     + Text(".")
                                         .foregroundColor(.gray)
+                                } else {
+                                    // Welcome Message for new users
+                                    Text("Gemini is here to recommend the best card to use on your shopping trip. Start using the feature on our app today!")
+                                        .foregroundColor(.gray)
+                                        .fixedSize(horizontal: false, vertical: true)
                                 }
-                                .padding(20)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(LinearGradient(colors: [cardBackground, Color.black.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                )
                             }
+                            .padding(20)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(LinearGradient(colors: [cardBackground, Color.black.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                            )
                         }
                         .padding(.horizontal, 24)
                         .padding(.top, 10)
@@ -251,10 +267,14 @@ struct HomeView: View {
                 }
             }
             .navigationDestination(isPresented: $navigateToRecommendation) {
-                RecommendationView(storeName: searchText, prioritizeCategory: selectedCategory?.rawValue)
+                RecommendationView(storeName: navigatedStoreName, prioritizeCategory: selectedCategory?.rawValue)
             }
         .onTapGesture {
             hideKeyboard()
+        }
+        .onAppear {
+             // Refresh insight card data
+             lastRecommendation = UserDefaults.standard.dictionary(forKey: "lastRecommendation")
         }
     }
     }

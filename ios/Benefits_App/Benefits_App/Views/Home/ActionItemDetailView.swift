@@ -96,8 +96,8 @@ struct ActionItemDetailView: View {
                     .foregroundColor(Color(red: 19/255, green: 109/255, blue: 236/255))
                     
                     if let instructions = item.gemini_instructions, !instructions.isEmpty {
-                        // Display Instructions
-                        Text(instructions)
+                        // Display Instructions - markdown enabled
+                        Text(LocalizedStringKey(instructions))
                             .foregroundColor(.white)
                             .padding()
                             .background(Color.black.opacity(0.3))
@@ -117,20 +117,37 @@ struct ActionItemDetailView: View {
                             .cornerRadius(8)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.5), lineWidth: 1))
                         
-                        Button(action: requestHelp) {
-                             if isRequestingHelp {
-                                 ProgressView()
-                             } else {
-                                 Text("Get Help")
-                                     .fontWeight(.bold)
-                                     .frame(maxWidth: .infinity)
-                             }
+                        HStack {
+                            Spacer()
+                            Button(action: requestHelp) {
+                                if isRequestingHelp {
+                                    HStack(spacing: 8) {
+                                        ProgressView()
+                                            .tint(.white)
+                                            .scaleEffect(0.8)
+                                        Text("Gemini is Thinking...")
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                    }
+                                    .padding(.vertical, 12)
+                                    .padding(.horizontal, 24)
+                                    .frame(maxWidth: .infinity) 
+                                } else {
+                                    Text("Get Help")
+                                        .fontWeight(.bold)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 12)
+                                }
+                            }
+                            .background(Color(red: 19/255, green: 109/255, blue: 236/255))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                            .disabled(helpInput.isEmpty || isRequestingHelp)
+                            .frame(maxWidth: isRequestingHelp ? 250 : .infinity) // Animate width change if possible, or just set it
+                            .animation(.spring(), value: isRequestingHelp)
+                            Spacer()
                         }
-                        .padding()
-                        .background(Color(red: 19/255, green: 109/255, blue: 236/255))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                        .disabled(helpInput.isEmpty || isRequestingHelp)
+
                         
                         if let err = helpError {
                             Text(err).foregroundColor(.red).font(.caption)

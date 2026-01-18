@@ -67,6 +67,9 @@ class RecommendationResponse(BaseModel):
     runner_up_id: str | None = None
     runner_up_reasoning: list[str] | None = None
     runner_up_return: str | None = None
+    # Enhanced Fields
+    corrected_store_name: str | None = None
+    is_valid_store: bool = True
 
 class ActionCenterCategory(str, Enum):
     CAR_RENTAL = "car_rental_insurance"

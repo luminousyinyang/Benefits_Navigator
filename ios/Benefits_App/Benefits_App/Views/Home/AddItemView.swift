@@ -36,7 +36,7 @@ struct AddItemView: View {
                         Picker("Card Used", selection: $selectedCardId) {
                             Text("Select Card").tag("")
                             ForEach(authManager.userCards) { card in
-                                Text(card.name).tag(card.card_id ?? card.id)
+                                Text(card.name).tag(card.id)
                             }
                         }
                     } else {
@@ -79,13 +79,11 @@ struct AddItemView: View {
                 Alert(title: Text("Error"), message: Text(errorMessage ?? ""), dismissButton: .default(Text("OK")))
             }
         }
-        .onTapGesture {
-            hideKeyboard()
-        }
+
         .onAppear {
              // Default selection
              if let first = authManager.userCards.first {
-                 selectedCardId = first.card_id ?? first.id
+                 selectedCardId = first.id
              }
         }
     }
@@ -97,7 +95,7 @@ struct AddItemView: View {
         }
         
         // Find card name
-        let cardName = authManager.userCards.first(where: { ($0.card_id ?? $0.id) == selectedCardId })?.name ?? "Unknown Card"
+        let cardName = authManager.userCards.first(where: { $0.id == selectedCardId })?.name ?? "Unknown Card"
         
         isSubmitting = true
         

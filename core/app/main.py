@@ -449,21 +449,30 @@ def get_recommendation(request: RecommendationRequest, current_user: dict = Depe
         {cards_str}
         
         STEPS:
-        1. 🌍 SEARCH: Use Google Search to identify what kind of store "{request.store_name}" is (e.g., Grocery, Dining, Travel, Electronics, Drugstore).
+        1. 🌍 SEARCH: Use Google Search to identify what kind of store "{request.store_name}" is.
+           - **VALIDATION**: If the input is gibberish, random letters, or clearly not a place of business (e.g. "asdf", "hello"), MARK it as INVALID.
+           - **CORRECTION**: If it is a typo or informal name (e.g. "strbcks", "mcdonalds"), CORRECT it to the proper canonical name (e.g. "Starbucks", "McDonald's").
         2. 🧠 ANALYZE: Compare the user's cards against this category.
            - If Strategy is PRIORITIZED CATEGORY: Look specifically for that benefit type (e.g. "Car Rental Insurance", "Warranty"). A card with this WINS over a card with high points but no protection.
            - If Strategy is VALUE (or Fallback): Look for the highest multiplier (e.g. 4x > 3x > 2% > 1.5%).
+           - **POINT VALUATION**: Estimate the REALISTIC cash value of the specific points/miles currency (e.g. Amex MR, Chase UR, Delta SkyMiles) based on general market value. Do NOT use a fixed rate for all cards.
            - **APPLY CONTEXT**: If the user has specific goals (e.g. "earning miles") or financial constraints (e.g. "needs low APR"), factor this heavily into the decision.
-        3. 🧮 CALCULATE: Estimate the return value (e.g. "4% back", "$15 value").
+        3. 🧮 CALCULATE: Estimate the return value. Do NOT mention "requested valuation" or "at X valuation" in the output. Just state the result.
         
         OUTPUT JSON:
         {{
             "best_card_id": "Exact ID from list",
-            "reasoning": ["Reason 1", "Reason 2 (mention priority status)", "How it fits user goals"],
-            "estimated_return": "e.g. '4% Cash Back' or 'Extended Warranty Included'",
+            "reasoning": [
+                "Primary Reason (Merge math here if relevant: e.g. '3x Points on Dining is worth ~4.5%, beating your 2% card')",
+                "Secondary Reason (e.g. 'Fits your goal of earning travel miles')",
+                "Additional Context (if needed)"
+            ],
+            "estimated_return": "EXTREMELY SHORT. Max 3-4 words. (e.g. '4x Points' or '3% Cash Back' or '$50 Value')",
             "runner_up_id": "Optional ID of 2nd best",
             "runner_up_reasoning": ["Why it's second"],
-            "runner_up_return": "e.g. '1.5% Cash Back'"
+            "runner_up_return": "e.g. '1.5% Cash Back'",
+            "corrected_store_name": "Canonical Name (e.g. 'Starbucks') or null if invalid",
+            "is_valid_store": true/false
         }}
         """
         

@@ -8,6 +8,7 @@ struct RecommendationView: View {
     @State private var userCards: [UserCard] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var isInvalidStore = false
     
     @Environment(\.dismiss) var dismiss
     
@@ -57,13 +58,24 @@ struct RecommendationView: View {
                         .multilineTextAlignment(.center)
                         .foregroundColor(textSecondary)
                         .padding(.horizontal)
-                    Button("Try Again") {
-                        Task { await loadData() }
+                    
+                    if isInvalidStore {
+                        Button("Go Back") {
+                            dismiss()
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.3))
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                    } else {
+                        Button("Try Again") {
+                            Task { await loadData() }
+                        }
+                        .padding()
+                        .background(primaryBlue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
                     }
-                    .padding()
-                    .background(primaryBlue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let rec = recommendation {
@@ -92,7 +104,7 @@ struct RecommendationView: View {
                                 .font(.system(size: 20, weight: .bold))
                                 .foregroundColor(textSecondary)
                             
-                            Text(storeName)
+                            Text(rec.corrected_store_name ?? storeName)
                                 .font(.system(size: 32, weight: .black))
                                 .foregroundColor(.white)
                                 .multilineTextAlignment(.center)
@@ -233,13 +245,24 @@ struct RecommendationView: View {
             )
             
             await MainActor.run {
+                // Check if store is valid
+                if !result.is_valid_store {
+                    self.errorMessage = "We couldn't identify a store with that name. Please check your spelling and try again."
+                    self.isInvalidStore = true // Set flag for UI
+                    self.isLoading = false
+                    return
+                }
+                
                 self.recommendation = result
                 self.isLoading = false
                                 
-                // Save to UserDefaults for Home Insight Card
+                // Use corrected name if available, otherwise original input
+                let displayStoreName = result.corrected_store_name ?? self.storeName
+                
+                // Save to UserDefaults for Home Insight Card (Only if valid)
                 if let bestCard = getCard(id: result.best_card_id) {
                     let record: [String: Any] = [
-                        "store": self.storeName,
+                        "store": displayStoreName,
                         "card": bestCard.name,
                         "reward": result.estimated_return,
                         "timestamp": Date().timeIntervalSince1970
@@ -377,6 +400,7 @@ struct HeroCardView: View {
                             .foregroundColor(.white)
                             .lineLimit(1)
                             .minimumScaleFactor(0.4)
+                            .padding(.horizontal, 16)
                     }
                     
                     // Gemini AI Pill
@@ -441,12 +465,14 @@ struct BenefitRow: View {
         estimated_return: "4.5%",
         runner_up_id: "Amex Gold",
         runner_up_reasoning: ["4x Points on Dining", "Great value but lower redemption rate"],
-        runner_up_return: "4.0%"
+        runner_up_return: "4.0%",
+        corrected_store_name: "Whole Foods Market",
+        is_valid_store: true
     )
     
     let mockRunnerUp = UserCard(card: Card(name: "Amex Gold", brand: "American Express", benefits: []))
     
-    return RecommendationView(
+    RecommendationView(
         storeName: "Whole Foods", 
         prioritizeCategory: nil,
         mockResponse: mockResponse,

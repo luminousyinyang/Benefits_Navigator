@@ -83,6 +83,14 @@ python app/main.py
 3.  Update the `APIService.swift` (or relevant network file) to point to your local backend IP if testing on a physical device, or `localhost` for simulator.
 4.  Build and run!
 
+### 3. Firestore Indexes
+For the Price Protection monitoring job to work, you must create a **Collection Group Index**.
+*   **Collection ID**: `price_protection`
+*   **Field**: `monitor_price`
+*   **Mode**: Ascending
+
+If you see a "requires a COLLECTION_GROUP_ASC index" error in your server logs, click the link provided in the error message to automatically create this index in the Firebase Console.
+
 ---
 
 ## 🤖 AI Logic (The "Magic")

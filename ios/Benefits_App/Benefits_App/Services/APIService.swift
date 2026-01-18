@@ -412,8 +412,11 @@ struct Card: Codable, Identifiable {
     let benefits: [Benefit]
 }
 
-struct UserCard: Codable, Identifiable {
-    var id: String { card_id ?? UUID().uuidString }
+struct UserCard: Codable, Identifiable, Hashable {
+    var id: String {
+        if let cid = card_id, !cid.isEmpty { return cid }
+        return name + brand
+    }
     let card_id: String?
     let name: String
     let brand: String
@@ -427,9 +430,18 @@ struct UserCard: Codable, Identifiable {
         self.benefits = card.benefits
         self.sign_on_bonus = nil
     }
+    
+    // Hashable conformance manually if needed, or synthesized if members are hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: UserCard, rhs: UserCard) -> Bool {
+        return lhs.id == rhs.id
+    }
 }
 
-struct SignOnBonus: Codable {
+struct SignOnBonus: Codable, Hashable {
     let bonus_value: Double
     let bonus_type: String // "Points" or "Dollars"
     let current_spend: Double // User input for how much they already spent
@@ -438,7 +450,7 @@ struct SignOnBonus: Codable {
     let last_updated: String? // Added for tracking
 }
 
-    struct Benefit: Codable {
+struct Benefit: Codable, Hashable {
     let category: String
     let title: String
     let description: String
@@ -458,6 +470,8 @@ struct RecommendationResponse: Codable {
     let runner_up_id: String?
     let runner_up_reasoning: [String]?
     let runner_up_return: String?
+    let corrected_store_name: String?
+    let is_valid_store: Bool
 }
 
 // MARK: - Action Center Models
