@@ -22,9 +22,16 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let kLastLocationTime = "lastLocationTime"
     private let kIsShoppingNotificationPending = "isShoppingNotificationPending"
     
+    private var isGeocoding = false
+    
     override init() {
         super.init()
         setupLocationManager()
+        setupLifecycleObservers()
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     func setupLocationManager() {
@@ -36,6 +43,21 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.showsBackgroundLocationIndicator = false // Hide the blue pill
         
         requestPermissions()
+    }
+    
+    private func setupLifecycleObservers() {
+        NotificationCenter.default.addObserver(self, selector: #selector(appDidEnterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(appWillEnterForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
+    }
+    
+    @objc private func appDidEnterBackground() {
+        print("Switching to background location tracking (reduced accuracy)")
+        locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+    }
+    
+    @objc private func appWillEnterForeground() {
+        print("Switching to foreground location tracking (high accuracy)")
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
     }
     
     func requestPermissions() {
@@ -69,6 +91,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - Dwell Detection Logic
     
     private func checkDwell(currentLocation: CLLocation) {
+        if isGeocoding { return } // Prevent overlapping updates
+        
         let defaults = UserDefaults.standard
         let lastLat = defaults.double(forKey: kLastLocationLat)
         let lastLon = defaults.double(forKey: kLastLocationLon)
@@ -113,6 +137,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func reverseGeocode(location: CLLocation, completion: @escaping (String?) -> Void) {
+        isGeocoding = true
+        
         // Use MapKit to find Points of Interest (POI) to filter out residential places
         let request = MKLocalPointsOfInterestRequest(center: location.coordinate, radius: 100)
         request.pointOfInterestFilter = MKPointOfInterestFilter(including: [
@@ -122,7 +148,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         ])
         
         let search = MKLocalSearch(request: request)
-        search.start { response, error in
+        search.start { [weak self] response, error in
+            defer { self?.isGeocoding = false }
+            
             if let error = error {
                 // Code 4 is "Placemark Not Found", which is expected for residential areas/apartments
                 // when filtering for businesses.
