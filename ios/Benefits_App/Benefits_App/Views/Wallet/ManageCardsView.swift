@@ -120,6 +120,18 @@ struct ManageCardsView: View {
         .onTapGesture {
             hideKeyboard()
         }
+        .onAppear {
+             Task {
+                 do {
+                      // Fetch for the sheet's cache
+                      let cards = try await APIService.shared.fetchAllCards()
+                      // We need to pass this to the sheet or the sheet fetches it itself?
+                      // The sheet is a separate struct. We should probably let the sheet fetch it on appear.
+                      // But the sheet view modifier (.sheet) creates the struct.
+                      // Let's modify AddCardSheet to fetch on its own appear.
+                 } catch {}
+             }
+        }
         .sheet(isPresented: $showingAddCardSheet) {
             AddCardSheet(isPresented: $showingAddCardSheet, onAdd: { 
                 fetchCards() // Refresh after adding
@@ -175,9 +187,11 @@ struct AddCardSheet: View {
     @State private var foundCard: Card?
     @State private var errorMessage: String?
     @State private var showingError = false
+    @State private var showSuccessMessage = false
     
     // Autocomplete state
     @State private var suggestions: [String] = []
+    @State private var allCardNames: [String] = [] // Cache
     
     // Sign-on Bonus State
     @State private var hasBonus = false
@@ -214,41 +228,48 @@ struct AddCardSheet: View {
                 
                 ScrollView {
                     VStack(spacing: 24) {
-                        // Search Bar Section
+                        // Search Bar & Bonus (Unified)
                         VStack(spacing: 0) {
+                            // 1. Search Bar
                             HStack {
                                 Image(systemName: "magnifyingglass")
                                     .foregroundColor(textSecondary)
                                 TextField("", text: $searchQuery, prompt: Text("Search for card (e.g. Amex Gold)").foregroundColor(textSecondary.opacity(0.7)))
                                     .foregroundColor(.white)
                                     .onSubmit {
-                                        performSearch()
+                                        searchAndAddCard()
                                     }
                                     .onChange(of: searchQuery) { _, newValue in
                                         updateSuggestions(query: newValue)
+                                        // Clear messages on typing
+                                        if !newValue.isEmpty {
+                                            withAnimation {
+                                                showSuccessMessage = false
+                                                errorMessage = nil
+                                                showingError = false
+                                            }
+                                        }
                                     }
                                 
                                 if !searchQuery.isEmpty {
-                                    Button(action: { performSearch() }) {
-                                        Image(systemName: "arrow.right.circle.fill")
+                                    Button(action: { searchAndAddCard() }) {
+                                        Image(systemName: "plus.circle.fill")
                                             .foregroundColor(primaryBlue)
                                             .font(.system(size: 24))
                                     }
                                 }
                             }
                             .padding()
-                            .background(cardBackground)
-                            .cornerRadius(12)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
                             
-                            // Suggestions List
+                            // 2. Suggestions List
                             if !suggestions.isEmpty {
+                                Divider().background(Color.white.opacity(0.1))
                                 VStack(alignment: .leading, spacing: 0) {
                                     ForEach(suggestions, id: \.self) { suggestion in
                                         Button(action: {
                                             searchQuery = suggestion
                                             suggestions = [] // Hide suggestions
-                                            // performSearch() // Optional auto-search
+                                            // Optional auto-search
                                         }) {
                                             Text(suggestion)
                                                 .foregroundColor(.white)
@@ -259,11 +280,129 @@ struct AddCardSheet: View {
                                         Divider().background(Color.white.opacity(0.1))
                                     }
                                 }
-                                .padding(.top, 4)
-                                .cornerRadius(8)
+                            }
+                            
+                            // 3. Sign-on Bonus Toggle
+                            Divider().background(Color.white.opacity(0.1))
+                            Toggle(isOn: $hasBonus.animation()) {
+                                Text("Track Sign-up Bonus")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.white)
+                            }
+                            .tint(primaryBlue)
+                            .padding()
+                            
+                            // 4. Bonus Inputs
+                            if hasBonus {
+                                Divider().background(Color.white.opacity(0.1))
+                                VStack(spacing: 12) {
+                                    // Amount & Type
+                                    HStack {
+                                        TextField("Bonus Amount", text: $bonusAmount)
+                                            .keyboardType(.numberPad)
+                                            .padding(.vertical, 12) // Increased padding
+                                            .padding(.horizontal, 10)
+                                            .background(Color.black.opacity(0.3))
+                                            .cornerRadius(8)
+                                            .foregroundColor(.white)
+                                            .overlay(
+                                                Text("Amount")
+                                                    .font(.caption)
+                                                    .foregroundColor(textSecondary)
+                                                    .padding(.top, -20)
+                                                    .padding(.leading, 4),
+                                                alignment: .topLeading
+                                            )
+                                            .padding(.top, 8)
+                                        
+                                        Picker("Type", selection: $bonusType) {
+                                            Text("Points").tag("Points")
+                                            Text("Dollars ($)").tag("Dollars")
+                                            Text("Miles").tag("Miles")
+                                        }
+                                        .pickerStyle(MenuPickerStyle())
+                                        .accentColor(.white)
+                                        .padding(6)
+                                        .frame(height: 44)
+                                        .background(Color.black.opacity(0.3))
+                                        .cornerRadius(8)
+                                        .padding(.top, 8)
+                                    }
+                                    
+                                    // Target Spend Goal
+                                    TextField("Target Spend Goal ($)", text: $targetSpend)
+                                        .keyboardType(.decimalPad)
+                                        .padding(.vertical, 12)
+                                        .padding(.horizontal, 10)
+                                        .background(Color.black.opacity(0.3))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.white)
+                                        .overlay(
+                                            Text("Target Spend ($)")
+                                                .font(.caption)
+                                                .foregroundColor(textSecondary)
+                                                .padding(.top, -20)
+                                                .padding(.leading, 4),
+                                            alignment: .topLeading
+                                        )
+                                        .padding(.top, 8)
+                                    
+                                    // Already Spent
+                                    TextField("Amount Contributed ($)", text: $currentSpend)
+                                        .keyboardType(.decimalPad)
+                                        .padding(.vertical, 12)
+                                        .padding(.horizontal, 10)
+                                        .background(Color.black.opacity(0.3))
+                                        .cornerRadius(8)
+                                        .foregroundColor(.white)
+                                        .overlay(
+                                            Text("Already Spent ($)")
+                                                .font(.caption)
+                                                .foregroundColor(textSecondary)
+                                                .padding(.top, -20)
+                                                .padding(.leading, 4),
+                                            alignment: .topLeading
+                                        )
+                                        .padding(.top, 8)
+                                    
+                                    // Deadline
+                                    HStack {
+                                        Text("Offer Ends")
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(.white)
+                                        Spacer()
+                                        DatePicker("", selection: $bonusDeadline, displayedComponents: .date)
+                                            .labelsHidden()
+                                            .colorScheme(.dark)
+                                            .accentColor(primaryBlue)
+                                    }
+                                    .padding(.top, 4)
+                                }
+                                .padding()
                             }
                         }
+                        .background(cardBackground)
+                        .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
                         
+                        if showSuccessMessage {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("Card Added Successfully")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.green)
+                            }
+                            .transition(.opacity.combined(with: .scale))
+                        }
+                        
+                         if let error = errorMessage {
+                             Text(error)
+                                .font(.system(size: 14))
+                                .foregroundColor(.red)
+                                .padding(.top, 4)
+                        }
+
                         if geminiThinking {
                             HStack(spacing: 8) {
                                 ProgressView().tint(primaryBlue)
@@ -273,122 +412,7 @@ struct AddCardSheet: View {
                             }
                         }
                         
-                        // Search Result (Found Card)
-                        if let card = foundCard {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("FOUND CARD")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(primaryBlue)
-                                
-                                VStack(alignment: .leading, spacing: 16) {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(card.name)
-                                                .font(.system(size: 16, weight: .bold))
-                                                .foregroundColor(.white)
-                                            Text(card.brand)
-                                                .font(.system(size: 14))
-                                                .foregroundColor(textSecondary)
-                                        }
-                                        Spacer()
-                                    }
-                                    
-                                    // Sign-on Bonus Toggle
-                                    Toggle(isOn: $hasBonus.animation()) {
-                                        Text("Track Sign-up Bonus")
-                                            .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(.white)
-                                    }
-                                    .tint(primaryBlue)
-                                    
-                                    if hasBonus {
-                                        VStack(spacing: 12) {
-                                            // Amount & Type
-                                            HStack {
-                                                TextField("Bonus Amount", text: $bonusAmount)
-                                                    .keyboardType(.numberPad)
-                                                    .padding(10)
-                                                    .background(Color.black.opacity(0.3))
-                                                    .cornerRadius(8)
-                                                    .foregroundColor(.white)
-                                                    .overlay(
-                                                        Text("Amount")
-                                                            .font(.caption)
-                                                            .foregroundColor(textSecondary)
-                                                            .padding(.top, -18)
-                                                            .padding(.leading, 4),
-                                                        alignment: .topLeading
-                                                    )
-                                                
-                                                Picker("Type", selection: $bonusType) {
-                                                    Text("Points").tag("Points")
-                                                    Text("Dollars ($)").tag("Dollars")
-                                                    Text("Miles").tag("Miles")
-                                                }
-                                                .pickerStyle(MenuPickerStyle())
-                                                .accentColor(.white)
-                                                .padding(6)
-                                                .background(Color.black.opacity(0.3))
-                                                .cornerRadius(8)
-                                            }
-                                            
-                                            // Target Spend Goal
-                                            TextField("Target Spend Goal ($)", text: $targetSpend)
-                                                .keyboardType(.decimalPad)
-                                                .padding(10)
-                                                .background(Color.black.opacity(0.3))
-                                                .cornerRadius(8)
-                                                .foregroundColor(.white)
-                                                .overlay(
-                                                    Text("Target Spend ($)")
-                                                        .font(.caption)
-                                                        .foregroundColor(textSecondary)
-                                                        .padding(.top, -18)
-                                                        .padding(.leading, 4),
-                                                    alignment: .topLeading
-                                                )
-                                            
-                                            // Already Spent
-                                            TextField("Amount Contributed ($)", text: $currentSpend)
-                                                .keyboardType(.decimalPad)
-                                                .padding(10)
-                                                .background(Color.black.opacity(0.3))
-                                                .cornerRadius(8)
-                                                .foregroundColor(.white)
-                                                .overlay(
-                                                    Text("Already Spent ($)")
-                                                        .font(.caption)
-                                                        .foregroundColor(textSecondary)
-                                                        .padding(.top, -18)
-                                                        .padding(.leading, 4),
-                                                    alignment: .topLeading
-                                                )
-                                            
-                                            // Deadline
-                                            DatePicker("Offer Ends", selection: $bonusDeadline, displayedComponents: .date)
-                                                .colorScheme(.dark)
-                                                .accentColor(primaryBlue)
-                                                .padding(4)
-                                        }
-                                        .padding(.top, 4)
-                                    }
-                                    
-                                    Button(action: { addCard(card) }) {
-                                        Text("Add Card")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 12)
-                                            .background(primaryBlue)
-                                            .foregroundColor(.white)
-                                            .cornerRadius(10)
-                                    }
-                                }
-                                .padding()
-                                .background(cardBackground)
-                                .cornerRadius(12)
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(primaryBlue.opacity(0.5), lineWidth: 1))
-                            }
-                        }
+                        // Search Result Block Removed
                     }
                     .padding(.horizontal)
                 }
@@ -400,6 +424,18 @@ struct AddCardSheet: View {
         .onTapGesture {
             hideKeyboard()
         }
+        .onAppear {
+            Task {
+                do {
+                    let cards = try await APIService.shared.fetchAllCards()
+                    DispatchQueue.main.async {
+                        self.allCardNames = cards
+                    }
+                } catch {
+                    print("Error fetching cards in sheet: \(error)")
+                }
+            }
+        }
     }
     
     func updateSuggestions(query: String) {
@@ -408,50 +444,56 @@ struct AddCardSheet: View {
             return
         }
         
-        Task {
-            do {
-                let results = try await APIService.shared.fetchCardSuggestions(query: query)
-                DispatchQueue.main.async {
-                    self.suggestions = results
+        if !allCardNames.isEmpty {
+             let lowerQuery = query.lowercased()
+             suggestions = allCardNames.filter { 
+                let name = $0.lowercased()
+                return name.contains(lowerQuery) && name != lowerQuery
+             }
+             if suggestions.count > 10 {
+                 suggestions = Array(suggestions.prefix(10))
+             }
+        } else {
+            Task {
+                do {
+                    let results = try await APIService.shared.fetchCardSuggestions(query: query)
+                    DispatchQueue.main.async {
+                        self.suggestions = results.filter { $0.lowercased() != query.lowercased() }
+                    }
+                } catch {
+                     print("Suggestion error: \(error)")
                 }
-            } catch {
-                print("Suggestion error: \(error)")
             }
         }
     }
     
-    func performSearch() {
+    func searchAndAddCard() {
         guard !searchQuery.isEmpty else { return }
         
         geminiThinking = true
         foundCard = nil
         errorMessage = nil
+        showSuccessMessage = false
         suggestions = [] // Hide suggestions on search
-        
-        // Reset Bonus State
-        hasBonus = false
-        bonusAmount = ""
-        currentSpend = ""
-        targetSpend = ""
         
         Task {
             do {
+                // 1. Search
                 let card = try await APIService.shared.searchCard(query: searchQuery)
-                DispatchQueue.main.async {
-                    self.foundCard = card
-                    self.geminiThinking = false
-                }
+                
+                // 2. Add
+                await addCard(card)
             } catch {
                  DispatchQueue.main.async {
                     self.geminiThinking = false
-                    self.errorMessage = error.localizedDescription
-                    self.showingError = true
+                    self.errorMessage = "Card not found. Please try a different name."
+                    // self.showingError = true
                 }
             }
         }
     }
     
-    func addCard(_ card: Card) {
+    func addCard(_ card: Card) async {
         var userCard = UserCard(card: card)
         
         if hasBonus {
@@ -477,23 +519,47 @@ struct AddCardSheet: View {
             )
         }
         
-        Task {
-            do {
-                try await APIService.shared.addUserCard(card: userCard)
-                DispatchQueue.main.async {
-                    onAdd()
-                    isPresented = false
+        do {
+            try await APIService.shared.addUserCard(card: userCard)
+            DispatchQueue.main.async {
+                self.geminiThinking = false
+                self.searchQuery = "" // Reset Search
+                
+                // Reset Bonus State
+                self.hasBonus = false
+                self.bonusAmount = ""
+                self.currentSpend = ""
+                self.targetSpend = ""
+                
+                onAdd()
+                // isPresented = false // Don't close immediately, let them see success?
+                // actually, user might want to add multiple cards. 
+                // Or if it's "Search -> Add", maybe we don't close.
+                // But for "Add Card Sheet", maybe closing is expected?
+                // The user said: "one search to add a card". 
+                // Usually "Add" button closes the sheet if successful.
+                
+                withAnimation {
+                    self.showSuccessMessage = true
                 }
-            } catch {
-                print(error)
-                DispatchQueue.main.async {
-                    self.errorMessage = "Failed to add card: \(error.localizedDescription)"
-                    self.showingError = true
+                
+                // Hide success message after 3 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    withAnimation {
+                        self.showSuccessMessage = false
+                    }
                 }
+            }
+        } catch {
+            print(error)
+            DispatchQueue.main.async {
+                self.geminiThinking = false
+                self.errorMessage = "Failed to add card: \(error.localizedDescription)"
+                // self.showingError = true
             }
         }
     }
-}
+} // End AddCardSheet
 
 // MARK: - Subviews
 struct CardRow: View {

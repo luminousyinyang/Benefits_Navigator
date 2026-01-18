@@ -249,6 +249,17 @@ def get_card_suggestions(query: str):
             suggestions.append(data['name'])
     return suggestions
 
+def get_all_card_names():
+    """Fetches ALL card names from the global DB."""
+    # Projection query: only fetch 'name' field
+    docs = db.collection('cards').select(['name']).stream()
+    names = []
+    for doc in docs:
+        data = doc.to_dict()
+        if 'name' in data:
+            names.append(data['name'])
+    return names
+
 def add_user_card(uid: str, card_data: dict):
     """
     Links a card to the user's wallet.

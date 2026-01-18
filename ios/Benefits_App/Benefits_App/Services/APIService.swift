@@ -221,6 +221,20 @@ class APIService {
         return []
     }
     
+    func fetchAllCards() async throws -> [String] {
+        guard let url = URL(string: "\(baseURL)/cards/all") else {
+            throw URLError(.badURL)
+        }
+        
+        let (data, _) = try await performRequest(url: url)
+        
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let cards = json["cards"] as? [String] {
+            return cards
+        }
+        return []
+    }
+    
     func fetchUserCards() async throws -> [UserCard] {
         guard let url = URL(string: "\(baseURL)/me/cards") else {
             throw URLError(.badURL)

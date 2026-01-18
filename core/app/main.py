@@ -184,6 +184,15 @@ def suggest_cards(query: str, current_user: dict = Depends(get_current_user)):
         print(f"Autocomplete error: {e}")
         return {"suggestions": []}
 
+@app.get("/cards/all")
+def get_all_cards(current_user: dict = Depends(get_current_user)):
+    """Returns all card names for local client-side search."""
+    try:
+        cards = auth.get_all_card_names()
+        return {"cards": cards}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/cards/search")
 def search_card(query: str, current_user: dict = Depends(get_current_user)):
     """
