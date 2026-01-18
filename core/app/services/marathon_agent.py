@@ -98,7 +98,12 @@ class MarathonAgent:
                 current_goal = data.get('target_goal', current_goal)
                 existing_roadmap = data.get('roadmap', [])
                 if existing_roadmap:
-                    roadmap_context = json.dumps(existing_roadmap, indent=2)
+                    # Enrich context with icons to help stability
+                    roadmap_context = "CURRENT MILESTONES (Preserve these unless changing strategy):\n"
+                    for m in existing_roadmap:
+                        icon = m.get('icon', 'map.fill')
+                        status = m.get('status', 'pending')
+                        roadmap_context += f"- [{status}] {m.get('title')} (Icon: {icon})\n"
 
             # Retrieve Financial Context
             financial_profile_str = ""
@@ -123,6 +128,13 @@ class MarathonAgent:
             CURRENT ROADMAP STATUS:
             {roadmap_context}
             
+            STABILITY RULES (CRITICAL):
+            1. 🛑 PRESERVE EXISTING: Do NOT change the Title or Icon of existing milestones unless the strategy fundamentally changes. If a milestone is 'completed', keep it exactly as is.
+            2. 🛑 ICONS: Use ONLY simple, valid SF Symbols.
+               - SAFE: map.fill, creditcard.fill, airplane, cart.fill, house.fill, star.fill, list.bullet
+               - AVOID: complex symbols or those with multiple dots/badges (e.g. 'creditcard.triangle.badge...').
+               - If unsure, use 'map.fill' or 'star.fill'.
+            
             TASK:
             1. 🔍 CHECK USER UPDATES: Scan current milestones for `user_notes`. If the user has flagged a roadblock (e.g., "Rejected", "Too expensive", "Don't want to"), you MUST adjust the plan accordingly.
             2. 🌍 DEEP WEB SEARCH: 
@@ -133,6 +145,9 @@ class MarathonAgent:
             4. 🛣️ UPDATE ROADMAP:
                - Update milestones based on new findings or user updates.
                - **IMPORTANT**: If a milestone is "current" but the user says they are stuck, either provide a solution in `description` or replace it with a new step.
+               - **SPLIT TASKS**: When recommending a new card, create TWO separate milestones:
+                 1. "Apply for [Card]" (Status: current. NO `spending_goal`).
+                 2. "Reach [Card] Bonus" (Status: pending. Set `spending_goal` equal to the bonus requirement here).
             5. ⚔️ SIDE QUESTS (OPTIONAL TASKS):
                - Identify 2-3 "Side Quests" based on their financial profile or potential bad habits (e.g., "Dining out too much? -> Cook at home", "Unused Subscriptions? -> Cancel").
                - Also look for "Card Perks" side quests (e.g., "Activate Amex Offers", "Use your $50 Hotel Credit").

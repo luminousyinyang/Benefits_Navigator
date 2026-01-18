@@ -336,7 +336,7 @@ struct MilestoneDetailView: View {
             VStack(spacing: 0) {
                 // Header Image
                 VStack(spacing: 16) {
-                    Image(systemName: milestone.icon)
+                    Image(systemName: (milestone.icon.isEmpty || milestone.icon == " ") ? "map.fill" : milestone.icon)
                         .font(.system(size: 50))
                         .foregroundColor(statusColor)
                         .padding(.top, 20)

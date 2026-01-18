@@ -141,7 +141,7 @@ struct MilestoneNodeView: View {
                         .frame(width: 74, height: 74)
                 }
                 
-                Image(systemName: milestone.icon)
+                Image(systemName: (milestone.icon.isEmpty || milestone.icon == " ") ? "map.fill" : milestone.icon)
                     .font(.system(size: 32, weight: .bold))
                     .foregroundColor(.white)
             }
