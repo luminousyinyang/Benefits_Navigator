@@ -5,6 +5,7 @@ struct LoginView: View {
     @State private var password = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var inlineError: String? // Added for inline error
     @State private var showAlert = false
     
     // Inject AuthManager
@@ -43,16 +44,25 @@ struct LoginView: View {
                         .padding()
                         .background(cardBackground)
                         .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(inlineError != nil ? Color.red : Color.white.opacity(0.1), lineWidth: 1))
+                        .onChange(of: email) { _ in inlineError = nil }
                     
                     SecureField("", text: $password, prompt: Text("Password").foregroundColor(.gray))
                         .padding()
                         .background(cardBackground)
                         .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(inlineError != nil ? Color.red : Color.white.opacity(0.1), lineWidth: 1))
+                        .onChange(of: password) { _ in inlineError = nil }
                 }
                 .foregroundColor(.white)
                 .padding(.bottom, 15)
+
+                if let inlineError = inlineError {
+                     Text(inlineError)
+                         .foregroundColor(.red)
+                         .font(.caption)
+                         .padding(.bottom, 10)
+                }
 
                 Button(action: {
                     login()
@@ -83,6 +93,7 @@ struct LoginView: View {
     func login() {
         isLoading = true
         errorMessage = nil
+        inlineError = nil
         
         Task {
             do {
@@ -96,8 +107,13 @@ struct LoginView: View {
                 }
             } catch {
                 isLoading = false
-                errorMessage = error.localizedDescription
-                showAlert = true
+                let errorMsg = error.localizedDescription.lowercased()
+                if errorMsg.contains("invalid") || errorMsg.contains("credential") || errorMsg.contains("password") {
+                    inlineError = "Invalid email or password"
+                } else {
+                    errorMessage = error.localizedDescription
+                    showAlert = true
+                }
             }
         }
     }

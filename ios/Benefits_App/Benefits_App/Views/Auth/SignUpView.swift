@@ -5,9 +5,20 @@ struct SignUpView: View {
     @State private var lastName = ""
     @State private var email = ""
     @State private var password = ""
+    @State private var confirmPassword = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showAlert = false
+    
+    @State private var passwordMessage: String?
+    @State private var confirmPasswordMessage: String?
+    @State private var emailMessage: String? // Added for inline email error
+    
+    @FocusState private var focusedField: Field?
+    
+    enum Field: Hashable {
+        case firstName, lastName, email, password, confirmPassword
+    }
     
     // Inject AuthManager
     @EnvironmentObject var authManager: AuthManager
@@ -53,19 +64,55 @@ struct SignUpView: View {
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
                     }
                     
-                    TextField("", text: $email, prompt: Text("Email").foregroundColor(.gray))
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
-                        .padding()
-                        .background(cardBackground)
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                    VStack(alignment: .leading, spacing: 5) {
+                        TextField("", text: $email, prompt: Text("Email").foregroundColor(.gray))
+                            .keyboardType(.emailAddress)
+                            .autocapitalization(.none)
+                            .padding()
+                            .background(cardBackground)
+                            .cornerRadius(12)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(emailMessage != nil ? Color.red : Color.white.opacity(0.1), lineWidth: 1))
+                            .onChange(of: email) { _ in emailMessage = nil }
+                        
+                        if let msg = emailMessage {
+                            Text(msg)
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .padding(.leading, 5)
+                        }
+                    }
                     
-                    SecureField("", text: $password, prompt: Text("Password").foregroundColor(.gray))
-                        .padding()
-                        .background(cardBackground)
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                    VStack(alignment: .leading, spacing: 5) {
+                        SecureField("", text: $password, prompt: Text("Password").foregroundColor(.gray))
+                            .focused($focusedField, equals: .password)
+                            .padding()
+                            .background(cardBackground)
+                            .cornerRadius(12)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(passwordMessage != nil ? Color.red : Color.white.opacity(0.1), lineWidth: 1))
+                        
+                        if let msg = passwordMessage {
+                            Text(msg)
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .padding(.leading, 5)
+                        }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 5) {
+                        SecureField("", text: $confirmPassword, prompt: Text("Confirm Password").foregroundColor(.gray))
+                            .focused($focusedField, equals: .confirmPassword)
+                            .padding()
+                            .background(cardBackground)
+                            .cornerRadius(12)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(confirmPasswordMessage != nil ? Color.red : Color.white.opacity(0.1), lineWidth: 1))
+                        
+                        if let msg = confirmPasswordMessage {
+                            Text(msg)
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .padding(.leading, 5)
+                        }
+                    }
                 }
                 .foregroundColor(.white)
                 .padding(.bottom, 15)
@@ -94,9 +141,40 @@ struct SignUpView: View {
         .alert(isPresented: $showAlert) {
              Alert(title: Text("Error"), message: Text(errorMessage ?? "Unknown error"), dismissButton: .default(Text("OK")))
         }
+        .onChange(of: focusedField) { newValue in
+            if newValue != .password && !password.isEmpty {
+                if password.count < 6 {
+                    passwordMessage = "Password must be at least 6 characters"
+                } else {
+                    passwordMessage = nil
+                }
+            }
+            
+            if newValue != .confirmPassword && !confirmPassword.isEmpty {
+                if confirmPassword != password {
+                    confirmPasswordMessage = "Passwords do not match"
+                } else {
+                    confirmPasswordMessage = nil
+                }
+            }
+        }
     }
     
     func signup() {
+        passwordMessage = nil
+        confirmPasswordMessage = nil
+        emailMessage = nil
+        
+        if password.count < 6 {
+            passwordMessage = "Password must be at least 6 characters"
+            return
+        }
+        
+        if password != confirmPassword {
+            confirmPasswordMessage = "Passwords do not match"
+            return
+        }
+        
         isLoading = true
         errorMessage = nil
         
@@ -117,8 +195,13 @@ struct SignUpView: View {
                 }
             } catch {
                 isLoading = false
-                errorMessage = error.localizedDescription
-                showAlert = true
+                let errorMsg = error.localizedDescription.lowercased()
+                if errorMsg.contains("taken") || errorMsg.contains("exists") || errorMsg.contains("already") {
+                    emailMessage = "Email is already taken"
+                } else {
+                    errorMessage = error.localizedDescription
+                    showAlert = true
+                }
             }
         }
     }
