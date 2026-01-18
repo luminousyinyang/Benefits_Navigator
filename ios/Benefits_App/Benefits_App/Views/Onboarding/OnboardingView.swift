@@ -16,6 +16,7 @@ struct OnboardingCardsView: View {
     @State private var userCards: [UserCard] = []
     @State private var errorMessage: String?
     @State private var showingError = false
+    @State private var showSuccessMessage = false
     
     // Autocomplete state
     @State private var suggestions: [String] = []
@@ -36,21 +37,8 @@ struct OnboardingCardsView: View {
             backgroundDark.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header / Progress
-                VStack(spacing: 8) {
-                    Text("STEP 2 OF 4")
-                        .font(.system(size: 12, weight: .semibold))
-                        .kerning(1.2)
-                        .foregroundColor(textSecondary)
-                    
-                    HStack(spacing: 6) {
-                        Circle().frame(width: 6, height: 6).foregroundColor(.white.opacity(0.2))
-                        RoundedRectangle(cornerRadius: 4).frame(width: 32, height: 6).foregroundColor(primaryBlue)
-                        Circle().frame(width: 6, height: 6).foregroundColor(.white.opacity(0.2))
-                        Circle().frame(width: 6, height: 6).foregroundColor(.white.opacity(0.2))
-                    }
-                }
-                .padding(.top, 20)
+                // Header Space
+                Spacer().frame(height: 20)
                 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
@@ -116,6 +104,17 @@ struct OnboardingCardsView: View {
                                 .padding(.top, 4)
                                 .cornerRadius(8)
                             }
+                        }
+                        
+                        if showSuccessMessage {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("Card Added Successfully")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.green)
+                            }
+                            .transition(.opacity.combined(with: .scale))
                         }
                         
                         if geminiThinking {
@@ -274,7 +273,7 @@ struct OnboardingCardsView: View {
                         // Tutorial Section
                         VStack(alignment: .leading, spacing: 16) {
                             HStack {
-                                Text("APP TUTORIAL")
+                                Text("APP FEATURES")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(textSecondary)
                                 Spacer()
@@ -310,6 +309,30 @@ struct OnboardingCardsView: View {
                                         iconColor: .purple,
                                         cardBg: cardBackground
                                     )
+                                    
+                                    TutorialCard(
+                                        icon: "creditcard.fill",
+                                        title: "Smart Wallet",
+                                        description: "Manage all your cards in one place and track spending progress.",
+                                        iconColor: .green,
+                                        cardBg: cardBackground
+                                    )
+                                    
+                                    TutorialCard(
+                                        icon: "location.fill",
+                                        title: "Location Alerts",
+                                        description: "Get notified of the best card to use when you enter a store.",
+                                        iconColor: .orange,
+                                        cardBg: cardBackground
+                                    )
+                                    
+                                    TutorialCard(
+                                        icon: "brain.head.profile",
+                                        title: "Credit Agent",
+                                        description: "AI-driven roadmap to help you maximize your credit score and rewards.",
+                                        iconColor: .pink,
+                                        cardBg: cardBackground
+                                    )
                                 }
                             }
                         }
@@ -325,7 +348,7 @@ struct OnboardingCardsView: View {
                 Spacer()
                 VStack(spacing: 16) {
                     Button(action: { completeOnboarding() }) {
-                        Text("Next Step")
+                        Text("Done")
                             .font(.system(size: 18, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 18)
@@ -437,6 +460,17 @@ struct OnboardingCardsView: View {
                     self.userCards.append(userCard)
                     self.foundCard = nil // Clear result after adding
                     self.searchQuery = ""
+                    
+                    withAnimation {
+                        self.showSuccessMessage = true
+                    }
+                    
+                    // Hide success message after 2 seconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation {
+                            self.showSuccessMessage = false
+                        }
+                    }
                 }
             } catch {
                 print("Error adding card: \(error)")
