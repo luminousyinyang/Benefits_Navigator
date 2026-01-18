@@ -39,8 +39,9 @@ struct RecommendationView: View {
                     ProgressView()
                         .scaleEffect(1.5)
                         .tint(.white)
-                    Text("Asking Gemini...")
+                    Text("Gemini Thinking...\nLoading Card Recommendations\nfor your current shopping trip...")
                         .font(.headline)
+                        .multilineTextAlignment(.center)
                         .foregroundColor(.white)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -201,8 +202,13 @@ struct RecommendationView: View {
             }
         }
         .navigationBarHidden(true)
-        .task {
-            await loadData()
+        .navigationBarHidden(true)
+        .onAppear {
+            if recommendation == nil {
+                Task {
+                    await loadData()
+                }
+            }
         }
     }
     
@@ -229,6 +235,17 @@ struct RecommendationView: View {
             await MainActor.run {
                 self.recommendation = result
                 self.isLoading = false
+                                
+                // Save to UserDefaults for Home Insight Card
+                if let bestCard = getCard(id: result.best_card_id) {
+                    let record: [String: Any] = [
+                        "store": self.storeName,
+                        "card": bestCard.name,
+                        "reward": result.estimated_return,
+                        "timestamp": Date().timeIntervalSince1970
+                    ]
+                    UserDefaults.standard.set(record, forKey: "lastRecommendation")
+                }
             }
         } catch {
             await MainActor.run {
@@ -292,15 +309,7 @@ struct HeroCardView: View {
                     // Card Content
                     VStack(alignment: .leading) {
                         HStack(alignment: .top) {
-                            // Chip
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(LinearGradient(colors: [Color(red: 212/255, green: 175/255, blue: 55/255), Color(red: 240/255, green: 220/255, blue: 130/255)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                .frame(width: 45, height: 32)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .stroke(Color.black.opacity(0.2), lineWidth: 0.5)
-                                )
-                            
+                            // Chip REMOVED as requested
                             Spacer()
                             
                             // Contactless Icon
@@ -326,10 +335,11 @@ struct HeroCardView: View {
                                 Text("CARDHOLDER NAME")
                                     .font(.caption2)
                                     .foregroundColor(.white.opacity(0.4))
-                                Text(cardName.uppercased())
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white.opacity(0.9))
-                                    .lineLimit(1)
+                                    Text(cardName.uppercased())
+                                    .font(.system(size: 20, weight: .black)) // Larger and bolder
+                                    .foregroundColor(.white) // Full white opacity
+                                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                    .lineLimit(2) // Allow wrapping if long
                             }
                             
                             Spacer()

@@ -33,9 +33,22 @@
 		96CC839D2F119E140066940E /* Benefits_AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Benefits_AppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		96198CEB2F1C70430068A052 /* Exceptions for "Benefits_App" folder in "Benefits_App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Benefits-App-Info.plist",
+			);
+			target = 96CC83852F119E130066940E /* Benefits_App */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		96CC83882F119E130066940E /* Benefits_App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				96198CEB2F1C70430068A052 /* Exceptions for "Benefits_App" folder in "Benefits_App" target */,
+			);
 			path = Benefits_App;
 			sourceTree = "<group>";
 		};
@@ -409,7 +422,10 @@
 				DEVELOPMENT_TEAM = 6272NBXDA2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Benefits-App-Info.plist";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "We need your location to detect when you are shopping to provide smart credit card recommendations.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to detect when you are shopping.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -445,7 +461,10 @@
 				DEVELOPMENT_TEAM = 6272NBXDA2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Benefits-App-Info.plist";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "We need your location to detect when you are shopping to provide smart credit card recommendations.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to detect when you are shopping.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

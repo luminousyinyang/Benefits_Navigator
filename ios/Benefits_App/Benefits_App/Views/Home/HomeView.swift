@@ -201,38 +201,47 @@ struct HomeView: View {
                             //                        Spacer(minLength: 40)
                             
                             // MARK: - Gemini Insight Card
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "sparkles")
-                                        .font(.system(size: 14))
-                                    Text("GEMINI INSIGHT")
-                                        .font(.system(size: 12, weight: .bold))
-                                }
-                                .foregroundColor(primaryBlue)
+                            if let lastRecommendation = UserDefaults.standard.dictionary(forKey: "lastRecommendation") as? [String: Any],
+                               let timestamp = lastRecommendation["timestamp"] as? TimeInterval,
+                               Date().timeIntervalSince1970 - timestamp < 3600 { // 1 Hour Expiration
                                 
-                                Text("Based on your location, you are near ")
-                                    .foregroundColor(.gray)
-                                + Text("Whole Foods")
-                                    .foregroundColor(.white)
-                                    .fontWeight(.semibold)
-                                + Text(". Use your ")
-                                    .foregroundColor(.gray)
-                                + Text("Amex Gold")
-                                    .foregroundColor(.white)
-                                    .fontWeight(.semibold)
-                                + Text(" for 4x points on groceries.")
-                                    .foregroundColor(.gray)
+                                let store = lastRecommendation["store"] as? String ?? "Unknown"
+                                let card = lastRecommendation["card"] as? String ?? "Best Card"
+                                let reward = lastRecommendation["reward"] as? String ?? "Rewards"
+                                
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "sparkles")
+                                            .font(.system(size: 14))
+                                        Text("GEMINI INSIGHT")
+                                            .font(.system(size: 12, weight: .bold))
+                                    }
+                                    .foregroundColor(primaryBlue)
+                                    
+                                    Text("Based on your last shopping recommendation you should use your ")
+                                        .foregroundColor(.gray)
+                                    + Text(card)
+                                        .foregroundColor(.white)
+                                        .fontWeight(.semibold)
+                                    + Text(" for ")
+                                        .foregroundColor(.gray)
+                                    + Text(reward)
+                                        .foregroundColor(.white)
+                                        .fontWeight(.semibold)
+                                    + Text(".")
+                                        .foregroundColor(.gray)
+                                }
+                                .padding(20)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(LinearGradient(colors: [cardBackground, Color.black.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                )
                             }
-                            .padding(20)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(LinearGradient(colors: [cardBackground, Color.black.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                            )
                         }
                         .padding(.horizontal, 24)
                         .padding(.top, 10)
