@@ -194,19 +194,19 @@ struct CreditAgentView: View {
                     
                     // Side Quests Button
                     if let tasks = state.optional_tasks, !tasks.isEmpty {
-                        Button(action: { showSideQuests = true }) {
-                            VStack(spacing: 4) {
-                                Image(systemName: "exclamationmark.bubble.fill")
-                                    .font(.title2)
-                                    .foregroundColor(.yellow)
-                                Text("Side Quests")
-                                    .font(.caption2.bold())
-                                    .foregroundColor(.yellow)
+                            Button(action: { showSideQuests = true }) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.bubble.fill")
+                                        .font(.title2)
+                                        .foregroundColor(Color(hex: "14B8A6")) // Electric Teal
+                                    Text("Side Quests")
+                                        .font(.caption2.bold())
+                                        .foregroundColor(Color(hex: "14B8A6"))
+                                }
+                                .padding(8)
+                                .background(Color(hex: "14B8A6").opacity(0.15))
+                                .cornerRadius(12)
                             }
-                            .padding(8)
-                            .background(Color.yellow.opacity(0.15))
-                            .cornerRadius(12)
-                        }
                     }
                 }
             }
@@ -570,9 +570,9 @@ struct SideQuestsView: View {
                                 HStack(alignment: .top, spacing: 12) {
                                     Image(systemName: task.icon)
                                         .font(.title2)
-                                        .foregroundColor(.yellow)
+                                        .foregroundColor(Color(hex: "14B8A6"))
                                         .frame(width: 40, height: 40)
-                                        .background(Color.yellow.opacity(0.1))
+                                        .background(Color(hex: "14B8A6").opacity(0.1))
                                         .clipShape(Circle())
                                     
                                     VStack(alignment: .leading, spacing: 4) {
@@ -617,10 +617,10 @@ struct SideQuestsView: View {
                                 }) {
                                     Text("Complete Quest")
                                         .font(.headline)
-                                        .foregroundColor(.black)
+                                        .foregroundColor(.white)
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 10)
-                                        .background(Color.yellow)
+                                        .background(Color(hex: "14B8A6")) // Teal for Button
                                         .cornerRadius(12)
                                 }
                             }
