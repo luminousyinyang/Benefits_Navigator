@@ -87,6 +87,7 @@ async def upload_statement(
         batch.commit()
         
         # --- INCREMENTAL UPDATES & BONUS TRACKING ---
+        completed_bonuses = []
         try:
              # 0. Identify NEW transactions to prevent double counting stats
              # We already generated doc_refs above but we didn't check existence.
@@ -224,6 +225,13 @@ async def upload_statement(
                              "total_cashback": firestore.Increment(bonus_val)
                          })
                          
+                         # Track for Notification
+                         completed_bonuses.append({
+                             "card_name": card.get('name'),
+                             "earned": bonus_val,
+                             "type": bonus.get('bonus_type', 'Status')
+                         })
+
                          # Remove bonus from card (User: "remove it from the user's account")
                          # Field delete
                          card_ref = db.collection('users').document(uid).collection('cards').document(card_doc_id)
@@ -253,7 +261,8 @@ async def upload_statement(
         return {
             "message": "Statement processed successfully",
             "count": saved_count,
-            "data": transactions
+            "data": transactions,
+            "completed_bonuses": completed_bonuses
         }
         
     except Exception as e:

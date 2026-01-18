@@ -511,7 +511,7 @@ struct OnboardingCardsView: View {
             print("Error adding card: \(error)")
             DispatchQueue.main.async {
                 self.geminiThinking = false
-                self.errorMessage = "Failed to add card. Please try again."
+                self.errorMessage = error.localizedDescription
             }
         }
     }

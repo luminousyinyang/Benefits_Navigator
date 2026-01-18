@@ -554,7 +554,7 @@ struct AddCardSheet: View {
             print(error)
             DispatchQueue.main.async {
                 self.geminiThinking = false
-                self.errorMessage = "Failed to add card: \(error.localizedDescription)"
+                self.errorMessage = error.localizedDescription
                 // self.showingError = true
             }
         }

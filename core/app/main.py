@@ -368,7 +368,15 @@ def update_card_bonus(card_id: str, bonus_update: dict, current_user: dict = Dep
              
              # Remove bonus
              card_ref.update({"sign_on_bonus": auth.firestore.DELETE_FIELD})
-             return {"status": "success", "message": "Goal reached! Bonus awarded."}
+             return {
+                 "status": "success", 
+                 "message": "Goal reached! Bonus awarded.",
+                 "bonus_completed": {
+                     "card_name": data.get('name', 'Card'),
+                     "earned": bonus_val,
+                     "type": bonus.get('bonus_type', 'Status')
+                 }
+             }
         
         else:
              card_ref.update({"sign_on_bonus": bonus})

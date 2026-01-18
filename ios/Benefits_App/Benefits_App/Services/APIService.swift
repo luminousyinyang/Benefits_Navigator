@@ -250,9 +250,13 @@ class APIService {
         }
         
         let jsonData = try JSONEncoder().encode(card)
-        let (_, response) = try await performRequest(url: url, method: "POST", body: jsonData)
+        let (data, response) = try await performRequest(url: url, method: "POST", body: jsonData)
         
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let detail = json["detail"] as? String {
+                 throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: detail])
+             }
              throw URLError(.badServerResponse)
         }
     }
@@ -276,7 +280,16 @@ class APIService {
         let body: [String: Any] = ["current_spend": currentSpend]
         let jsonData = try JSONSerialization.data(withJSONObject: body)
         
-        try await performRequest(url: url, method: "PATCH", body: jsonData)
+        let (data, _) = try await performRequest(url: url, method: "PATCH", body: jsonData)
+        
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let bonus = json["bonus_completed"] as? [String: Any],
+           let cardName = bonus["card_name"] as? String,
+           let earned = bonus["earned"] as? Double,
+           let type = bonus["type"] as? String {
+             
+             NotificationManager.shared.sendBonusCompletionNotification(cardName: cardName, earned: earned, type: type)
+        }
     }
     
     func deleteCardBonus(cardId: String) async throws {

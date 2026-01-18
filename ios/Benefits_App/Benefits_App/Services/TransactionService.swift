@@ -105,10 +105,24 @@ class TransactionService: ObservableObject {
         
         request.httpBody = body
         
-        let (_, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             throw URLError(.badServerResponse)
+        }
+        
+        // Check for completed bonuses
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let bonuses = json["completed_bonuses"] as? [[String: Any]] {
+            
+            for bonus in bonuses {
+                if let cardName = bonus["card_name"] as? String,
+                   let earned = bonus["earned"] as? Double,
+                   let type = bonus["type"] as? String {
+                    
+                    NotificationManager.shared.sendBonusCompletionNotification(cardName: cardName, earned: earned, type: type)
+                }
+            }
         }
         
         // Invalidate cache so next fetch gets new data

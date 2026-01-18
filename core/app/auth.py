@@ -282,8 +282,16 @@ def add_user_card(uid: str, card_data: dict):
     if 'sign_on_bonus' in card_data and card_data['sign_on_bonus']:
         link_data['sign_on_bonus'] = card_data['sign_on_bonus']
     
+    # Check for duplicate
+    doc_ref = db.collection('users').document(uid).collection('cards').document(card_id)
+    if doc_ref.get().exists:
+         raise HTTPException(
+             status_code=status.HTTP_409_CONFLICT,
+             detail="This card is already in your wallet."
+         )
+
     # Save to user's subcollection
-    db.collection('users').document(uid).collection('cards').document(card_id).set(link_data)
+    doc_ref.set(link_data)
     
 def get_user_cards(uid: str):
     """
