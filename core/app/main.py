@@ -469,6 +469,10 @@ def get_recommendation(request: RecommendationRequest, current_user: dict = Depe
         1. 🌍 SEARCH: Use Google Search to identify what kind of store "{request.store_name}" is.
            - **VALIDATION**: If the input is gibberish, random letters, or clearly not a place of business (e.g. "asdf", "hello"), MARK it as INVALID.
            - **CORRECTION**: If it is a typo or informal name (e.g. "strbcks", "mcdonalds"), CORRECT it to the proper canonical name (e.g. "Starbucks", "McDonald's").
+           - **CRITICAL EXCEPTION**: Do NOT "correct" valid words or brand names that might be other things.
+             - EXAMPLE: "Delta" is an Airline. Do NOT correct it to "Dell".
+             - EXAMPLE: "Apple" is a Store. Do NOT correct it to "Applebees".
+             - If the input is ALREADY a valid real-world business (like "Delta"), USE IT AS IS.
         2. 🧠 ANALYZE: Compare the user's cards against this category.
            - If Strategy is PRIORITIZED CATEGORY: Look specifically for that benefit type (e.g. "Car Rental Insurance", "Warranty"). A card with this WINS over a card with high points but no protection.
            - If Strategy is VALUE (or Fallback): Look for the highest multiplier (e.g. 4x > 3x > 2% > 1.5%).

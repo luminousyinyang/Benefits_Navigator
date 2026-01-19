@@ -21,12 +21,26 @@ struct AddItemView: View {
     @State private var isSubmitting = false
     @State private var errorMessage: String?
     
+    // Pre-fill support
+    private let initialRetailer: String?
+    private let initialCardId: String?
+    
+    init(category: ActionCenterView.Category, initialRetailer: String? = nil, initialCardId: String? = nil) {
+        self.category = category
+        self.initialRetailer = initialRetailer
+        self.initialCardId = initialCardId
+        
+        // Initialize State with pre-filled values
+        _retailer = State(initialValue: initialRetailer ?? "")
+        _selectedCardId = State(initialValue: initialCardId ?? "")
+    }
+    
     let backgroundDark = Color(red: 16/255, green: 24/255, blue: 34/255)
     
     var body: some View {
         NavigationStack {
             Form {
-                Section(header: Text("Transaction Details")) {
+                Section(header: Text("Record Details")) {
                     TextField("Retailer Name", text: $retailer)
                     TextField("Total Amount ($)", text: $total)
                         .keyboardType(.decimalPad)
@@ -81,8 +95,8 @@ struct AddItemView: View {
         }
 
         .onAppear {
-             // Default selection
-             if let first = authManager.userCards.first {
+             // Default selection only if not pre-filled
+             if selectedCardId.isEmpty, let first = authManager.userCards.first {
                  selectedCardId = first.id
              }
         }

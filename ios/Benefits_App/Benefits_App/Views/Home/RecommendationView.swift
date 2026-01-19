@@ -9,6 +9,7 @@ struct RecommendationView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var isInvalidStore = false
+    @State private var showingAddSheet = false
     
     @Environment(\.dismiss) var dismiss
     
@@ -207,14 +208,48 @@ struct RecommendationView: View {
                                 .cornerRadius(12)
                             }
                             .padding(.horizontal)
-                            .padding(.bottom, 120)
+                            .padding(.bottom, 20)
                         }
+                    }
+                    
+                    // Record to Action Center Button (Inline)
+                    if let priority = prioritizeCategory, let category = matchCategory(priority) {
+                        Button(action: { showingAddSheet = true }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 24))
+                                Text("Record to Action Center: \(category.rawValue)")
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.vertical, 16)
+                            .padding(.horizontal, 24)
+                            .background(primaryBlue)
+                            .cornerRadius(16)
+                            .shadow(radius: 10)
+                        }
+                        .padding(.bottom, 40)
+                        .frame(maxWidth: .infinity) // Center the button itself in the parent view
                     }
                 }
             }
+
+
+            
+            // Floating "Record Transaction" Button (if applicable)
+
         }
-        .navigationBarHidden(true)
-        .navigationBarHidden(true)
+        .sheet(isPresented: $showingAddSheet) {
+            if let priority = prioritizeCategory, let category = matchCategory(priority) {
+                AddItemView(
+                    category: category,
+                    initialRetailer: isInvalidStore ? storeName : (recommendation?.corrected_store_name ?? storeName),
+                    initialCardId: recommendation?.best_card_id
+                )
+            }
+        }
         .onAppear {
             if recommendation == nil {
                 Task {
@@ -222,6 +257,21 @@ struct RecommendationView: View {
                 }
             }
         }
+        .navigationBarBackButtonHidden(true)
+    }
+    
+    // Helper to map loose priority strings to strict Action Categories
+    func matchCategory(_ input: String) -> ActionCenterView.Category? {
+        let lower = input.lowercased()
+        
+        if lower.contains("rental") || lower.contains("car") { return .carRental }
+        if lower.contains("flight") || lower.contains("travel") || lower.contains("airport") { return .airport }
+        if lower.contains("warranty") || lower.contains("protect") { return .warranty }
+        if lower.contains("price") { return .priceProtection }
+        if lower.contains("return") { return .returns }
+        if lower.contains("phone") || lower.contains("cellular") { return .cellPhone }
+        
+        return nil
     }
     
     func loadData() async {
