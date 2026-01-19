@@ -297,9 +297,14 @@ struct RecommendationView: View {
         
         if lower.contains("rental") || lower.contains("car") { return .carRental }
         if lower.contains("flight") || lower.contains("travel") || lower.contains("airport") { return .airport }
-        if lower.contains("warranty") || lower.contains("protect") { return .warranty }
+        
+        // Specific protections first
         if lower.contains("price") { return .priceProtection }
         if lower.contains("return") { return .returns }
+        
+        // Generic catch-all for warranty/protection
+        if lower.contains("warranty") || lower.contains("protect") { return .warranty }
+        
         if lower.contains("phone") || lower.contains("cellular") { return .cellPhone }
         
         return nil
