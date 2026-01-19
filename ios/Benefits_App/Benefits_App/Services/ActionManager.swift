@@ -48,6 +48,12 @@ class ActionManager: ObservableObject {
     }
     
     private func checkForPriceDrops(newItems: [ActionItem], oldItems: [ActionItem]) {
+        // If we have no old items, this is likely an initial fetch or fresh login.
+        // We should NOT notify for existing price drops in this case.
+        if oldItems.isEmpty {
+            return
+        }
+        
         for newItem in newItems {
             // Check if this item has a drop
             if let low = newItem.lowest_price_found, low < newItem.total {
@@ -57,7 +63,18 @@ class ActionManager: ObservableObject {
                     if let oldLow = oldItem.lowest_price_found, oldLow <= low + 0.01 {
                         continue
                     }
+                } else {
+                    // Item is new to our list, but if we have other items (oldItems is not empty),
+                    // this represents a newly added item during an active session.
+                    // If a user ADDS an item and it immediately has a drop, maybe we should notify?
+                    // User says "only send... on new price drop alerts... found after user has logged in".
+                    // If I add an item, I see the screen. I don't need a notification.
+                    // So, if the item wasn't in the old list, we probably shouldn't notify either,
+                    // UNLESS we are sure it's a *new* drop.
+                    // But effectively, preventing notification on "newly added items" is safer to avoid spam.
+                    continue
                 }
+                
                 // Notify!
                 NotificationManager.shared.sendPriceDropNotification(
                     item: newItem.item_bought ?? newItem.retailer,
@@ -114,22 +131,26 @@ class ActionManager: ObservableObject {
             
             await MainActor.run {
                 // Determine if we found something new before updating
-                // Re-using logic roughly
-                for newItem in fetched {
-                     if let low = newItem.lowest_price_found, low < newItem.total {
-                         // Check if OLD item already knew this
-                         if let oldItem = oldItems.first(where: { $0.id == newItem.id }) {
-                             if let oldLow = oldItem.lowest_price_found, oldLow <= low + 0.01 {
-                                 continue
+                // Only check for drops if we had a baseline (oldItems is not empty)
+                if !oldItems.isEmpty {
+                    for newItem in fetched {
+                         if let low = newItem.lowest_price_found, low < newItem.total {
+                             // Check if OLD item already knew this
+                             if let oldItem = oldItems.first(where: { $0.id == newItem.id }) {
+                                 if let oldLow = oldItem.lowest_price_found, oldLow <= low + 0.01 {
+                                     continue
+                                 }
+                                 // Found a drop on an EXISTING item that is lower than before
+                                 newDropFound = true
+                                 NotificationManager.shared.sendPriceDropNotification(
+                                    item: newItem.item_bought ?? newItem.retailer,
+                                    saved: newItem.total - low,
+                                    foundPrice: low
+                                 )
                              }
+                             // If item is new (not in oldItems), we skip notification (same logic as checkForPriceDrops)
                          }
-                         newDropFound = true
-                         NotificationManager.shared.sendPriceDropNotification(
-                            item: newItem.item_bought ?? newItem.retailer,
-                            saved: newItem.total - low,
-                            foundPrice: low
-                         )
-                     }
+                    }
                 }
                 
                 self.itemsByCategory[category] = fetched
@@ -155,5 +176,10 @@ class ActionManager: ObservableObject {
            let decoded = try? JSONDecoder().decode([String: [ActionItem]].self, from: data) {
             self.itemsByCategory = decoded
         }
+    }
+    
+    func clearCache() {
+        itemsByCategory = [:]
+        UserDefaults.standard.removeObject(forKey: cacheKey)
     }
 }

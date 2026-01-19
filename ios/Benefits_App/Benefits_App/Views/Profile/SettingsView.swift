@@ -47,40 +47,7 @@ struct SettingsView: View {
         }
 
     
-    func simulatePriceProtection() {
-        // Create a mock ActionItem for Price Protection
-        let mockItem = ActionItem(
-            id: UUID().uuidString, // Temporary ID, real one comes from backend
-            category: "price_protection",
-            card_id: authManager.userCards.first?.id ?? "mock_card_id",
-            card_name: authManager.userCards.first?.name ?? "Amex Platinum",
-            retailer: "Best Buy",
-            date: "2024-05-15",
-            total: 349.99,
-            car_rented: nil,
-            flight_info: nil,
-            item_bought: "Sony WH-1000XM5 Headphones",
-            phone_bought: nil,
-            help_requested: false,
-            gemini_instructions: nil,
-            monitor_price: true, // Auto-trigger monitor
-            lowest_price_found: nil,
-            last_checked: nil
-        )
-        
-        isLoading = true
-        Task {
-            do {
-                try await actionManager.addItem(category: "price_protection", item: mockItem)
-                alertMessage = "Added 'Sony Headphones' to Price Protection. Backend search triggered."
-                showAlert = true
-            } catch {
-                alertMessage = "Error adding item: \(error.localizedDescription)"
-                showAlert = true
-            }
-            isLoading = false
-        }
-    }
+
     
     var body: some View {
         ZStack {
@@ -145,13 +112,14 @@ struct SettingsView: View {
                         }
                         
                         // MARK: - Debug
+                        /*
                         VStack(alignment: .leading, spacing: 16) {
                             Text("Debug Tools")
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(.white)
                             
                             Button(action: {
-                                simulatePriceProtection()
+                                // simulatePriceProtection()
                             }) {
                                 Text("Simulate Price Protection")
                                     .font(.headline)
@@ -162,6 +130,7 @@ struct SettingsView: View {
                                     .cornerRadius(12)
                             }
                         }
+                        */
                         
                         Divider().background(Color.gray.opacity(0.3))
                         
@@ -198,7 +167,6 @@ struct SettingsView: View {
                             .background(Color.red.opacity(0.1))
                             .cornerRadius(12)
                         }
-                        .padding(.top, 24)
                     }
                     .padding()
                 }

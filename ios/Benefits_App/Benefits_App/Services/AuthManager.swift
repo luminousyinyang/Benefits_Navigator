@@ -177,6 +177,8 @@ class AuthManager: ObservableObject {
         
         APIService.shared.clearSession()
         UserDefaults.standard.removeObject(forKey: "lastRecommendation") // Clear Gemini Home Insight
+        
+        ActionManager.shared.clearCache()
     }
     
     func completeOnboarding() {
