@@ -47,6 +47,37 @@ struct RecommendationView: View {
                         .foregroundColor(.white)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if errorMessage == "NO_CARDS" {
+                 // NO CARDS STATE
+                 VStack(spacing: 20) {
+                     Image(systemName: "creditcard.trianglebadge.exclamationmark")
+                         .font(.system(size: 60))
+                         .foregroundColor(textSecondary)
+                     
+                     Text("No Cards Found")
+                         .font(.title2.bold())
+                         .foregroundColor(.white)
+                     
+                     Text("We can't recommend a card because you haven't added any yet! Add your cards to start optimizing your rewards.")
+                         .font(.body)
+                         .multilineTextAlignment(.center)
+                         .foregroundColor(textSecondary)
+                         .padding(.horizontal, 40)
+                     
+                     Button(action: {
+                         dismiss() // Go back to Home
+                         // In a real app, maybe trigger navigation to Wallet tab via binding or notification
+                     }) {
+                         Text("Go Back & Add Cards")
+                             .font(.headline)
+                             .foregroundColor(.black)
+                             .padding()
+                             .background(Color.white)
+                             .cornerRadius(12)
+                     }
+                 }
+                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error = errorMessage {
                 VStack(spacing: 16) {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -284,6 +315,14 @@ struct RecommendationView: View {
             
             // 1. Fetch user cards to have details for display
             self.userCards = try await APIService.shared.fetchUserCards()
+            
+            if self.userCards.isEmpty {
+                await MainActor.run {
+                    self.errorMessage = "NO_CARDS"
+                    self.isLoading = false
+                }
+                return
+            }
             
             // ... (rest of function) ...
             

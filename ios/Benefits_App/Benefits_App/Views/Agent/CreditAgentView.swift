@@ -64,13 +64,23 @@ struct CreditAgentView: View {
                         .scaleEffect(1.5)
                         .tint(.white)
                     
-                    Text("Re-evaluating Roadmap...")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                    
-                    Text("Analyzing new data to update your plan.")
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                    if let roadmap = state.roadmap, !roadmap.isEmpty {
+                        Text("Re-evaluating Roadmap...")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        Text("Analyzing new data to update your plan.")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    } else {
+                        Text("Building Your Roadmap...")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        Text("Analyzing your goal to create a personalized strategy.")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
                 }
                 .padding(40)
                 .background(Color(hex: "0F172A").opacity(0.95))

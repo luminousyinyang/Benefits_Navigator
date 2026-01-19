@@ -59,6 +59,7 @@ struct HomeView: View {
                         Spacer()
                         
                         Button(action: {
+                            AgentService.shared.clearState()
                             authManager.logout()
                         }) {
                             HStack(spacing: 6) {

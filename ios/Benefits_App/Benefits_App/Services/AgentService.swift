@@ -104,6 +104,11 @@ class AgentService: ObservableObject {
         }
     }
     
+    func clearState() {
+        self.state = nil
+        UserDefaults.standard.removeObject(forKey: kCachedAgentState)
+    }
+    
     private func loadCache() {
         if let data = UserDefaults.standard.data(forKey: kCachedAgentState),
            let decoded = try? JSONDecoder().decode(AgentPublicState.self, from: data) {
