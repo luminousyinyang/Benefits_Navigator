@@ -81,7 +81,7 @@ struct ActionCategoryView: View {
             AddItemView(category: category)
         }
         .onAppear {
-            actionManager.fetchItems(for: category.backendValue)
+            actionManager.fetchItems(for: category.backendValue, force: true)
         }
     }
     

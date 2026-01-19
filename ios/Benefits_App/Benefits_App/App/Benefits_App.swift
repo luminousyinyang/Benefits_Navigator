@@ -30,6 +30,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
       completionHandler()
   }
   
+  func application(_ application: UIApplication, performFetchWithCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+      Task {
+          let result = await ActionManager.shared.performBackgroundFetch()
+          completionHandler(result)
+      }
+  }
+  
   func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
       return .portrait
   }

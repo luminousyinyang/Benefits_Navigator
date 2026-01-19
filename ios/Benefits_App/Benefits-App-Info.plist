@@ -5,8 +5,13 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
+		<string>fetch</string>
 	</array>
 	<key>CFBundleDisplayName</key>
 	<string>Benefits Navigator</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to suggest the best card for stores you visit.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We need your location to detect when you are shopping and send you money-saving alerts.</string>
 </dict>
 </plist>

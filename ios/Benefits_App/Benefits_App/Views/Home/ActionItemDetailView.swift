@@ -4,9 +4,11 @@ struct ActionItemDetailView: View {
     @State var item: ActionItem
     @EnvironmentObject var actionManager: ActionManager
     
+    @Environment(\.dismiss) var dismiss
     @State private var helpInput: String = ""
     @State private var isRequestingHelp = false
     @State private var helpError: String?
+    @State private var isDeleting = false
     
     let backgroundDark = Color(red: 16/255, green: 24/255, blue: 34/255)
     let cardBackground = Color(red: 28/255, green: 32/255, blue: 39/255)
@@ -48,6 +50,70 @@ struct ActionItemDetailView: View {
                 // Price Protection Section
                 if item.category == "price_protection" {
                     VStack(alignment: .leading, spacing: 12) {
+                        // Price Drop Banner
+                        if let found = item.lowest_price_found, found < item.total {
+                            VStack(spacing: 12) {
+                                // Notification part
+                                HStack {
+                                    Image(systemName: "party.popper.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.green)
+                            
+                                    VStack(alignment: .leading) {
+                                        Text("Price Drop Detected!")
+                                            .font(.headline)
+                                            .foregroundColor(.green)
+                                        
+                                        Text("You can save $\(String(format: "%.2f", item.total - found))")
+                                            .font(.subheadline)
+                                            .foregroundColor(.white)
+                                    }
+                                    Spacer()
+                                }
+                                .padding()
+                                .background(Color.green.opacity(0.15))
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                                )
+                                
+                                // Action part (The "Separate Box")
+                                if let urlStr = item.lowest_price_url, let url = URL(string: urlStr) {
+                                    Link(destination: url) {
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("New Lowest Price")
+                                                    .font(.caption)
+                                                    .foregroundColor(.gray)
+                                                Text("$\(String(format: "%.2f", found))")
+                                                    .font(.title3)
+                                                    .fontWeight(.bold)
+                                                    .foregroundColor(.white)
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            HStack {
+                                                Text("View Deal")
+                                                    .fontWeight(.semibold)
+                                                Image(systemName: "arrow.up.right")
+                                                    .font(.caption)
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.horizontal, 16)
+                                            .background(Color.green)
+                                            .foregroundColor(.black)
+                                            .cornerRadius(8)
+                                        }
+                                        .padding()
+                                        .background(Color.white.opacity(0.05))
+                                        .cornerRadius(12)
+                                    }
+                                }
+                            }
+                        }
+                        
                         Text("Price Monitoring")
                             .font(.headline)
                             .foregroundColor(.white)
@@ -157,6 +223,29 @@ struct ActionItemDetailView: View {
                 .padding()
                 .background(cardBackground)
                 .cornerRadius(16)
+                
+                // MARK: - Delete Button
+                Button(action: {
+                    deleteItem()
+                }) {
+                    if isDeleting {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .red))
+                    } else {
+                        HStack {
+                            Image(systemName: "trash")
+                            Text("Delete Record")
+                        }
+                        .foregroundColor(.red)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(12)
+                    }
+                }
+                .disabled(isDeleting)
+                
+                Spacer(minLength: 40)
             }
             .padding()
         }
@@ -164,6 +253,21 @@ struct ActionItemDetailView: View {
         .navigationTitle("Details")
         .onTapGesture {
             hideKeyboard()
+        }
+    }
+    
+    func deleteItem() {
+        isDeleting = true
+        Task {
+            do {
+                if let id = item.id {
+                    try await actionManager.deleteItem(category: item.category, itemId: id)
+                    dismiss()
+                }
+            } catch {
+                print("Error deleting item: \(error)")
+                isDeleting = false
+            }
         }
     }
     

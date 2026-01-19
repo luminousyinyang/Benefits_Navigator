@@ -4,6 +4,7 @@ from firebase_admin import credentials, auth, firestore
 from dotenv import load_dotenv
 import requests
 from fastapi import HTTPException, status
+from datetime import datetime
 
 load_dotenv()
 
@@ -374,6 +375,15 @@ def add_action_item(uid: str, category: str, item_data: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+def serialize_doc(doc_dict: dict):
+    """Recursively converts datetime objects to ISO strings."""
+    for key, value in doc_dict.items():
+        if isinstance(value, datetime):
+            doc_dict[key] = value.isoformat()
+        elif isinstance(value, dict):
+            serialize_doc(value)
+    return doc_dict
+
 def get_action_items(uid: str, category: str):
     """Fetches all items for a specific category."""
     try:
@@ -382,7 +392,7 @@ def get_action_items(uid: str, category: str):
         for doc in docs:
             item = doc.to_dict()
             item['id'] = doc.id
-            items.append(item)
+            items.append(serialize_doc(item))
         return items
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -394,7 +404,7 @@ def get_action_item(uid: str, category: str, item_id: str):
         if doc.exists:
             data = doc.to_dict()
             data['id'] = doc.id
-            return data
+            return serialize_doc(data)
         return None
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -403,6 +413,13 @@ def update_action_item(uid: str, category: str, item_id: str, updates: dict):
     """Updates an action item."""
     try:
         db.collection('users').document(uid).collection(category).document(item_id).update(updates)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def delete_action_item(uid: str, category: str, item_id: str):
+    """Deletes an action item."""
+    try:
+        db.collection('users').document(uid).collection(category).document(item_id).delete()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

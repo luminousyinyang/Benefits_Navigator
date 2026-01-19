@@ -123,6 +123,107 @@ def update_all_cards():
 
 
 
+def check_single_item_price(item: dict, client=None):
+    """
+    Checks the price for a single item. 
+    Can be called by Cron Job OR manually via API trigger.
+    """
+    if not client:
+        client = get_gemini_client()
+        if not client:
+            print("Skipping check: No Gemini API Key.")
+            return
+
+    item_id = item.get('id')
+    uid = item.get('uid')
+    product_name = item.get('item_bought')
+    original_price = item.get('total')
+    
+    if not product_name or not uid:
+        return
+        
+    print(f"Checking price for: {product_name} (Paid: ${original_price})")
+    
+    # 2. Ask Gemini 3 Flash
+    prompt = f"""
+    Search specifically for the CURRENT lowest price of this exact product: "{product_name}".
+    Search all major retailers (Amazon, Best Buy, Walmart, Target, Manufacturer Store).
+    
+    Identify the lowest valid price currently available for a NEW (not used/refurbished) item.
+    
+    Return JSON:
+    {{
+        "lowest_price": 123.45,
+        "retailer": "Store Name",
+        "url": "Link to deal"
+    }}
+    
+    CRITICAL URL RULES:
+    1. The 'url' MUST be the exact, real link returned by the Google Search tool. 
+    2. DO NOT guess or hallucinate URLs. 
+    3. Ensure the link goes directly to the product page, not a search results page.
+    4. If you cannot find a 100% confirmed valid link, return null for the URL.
+    
+    If no clear price/URL found, return null for lowest_price.
+    """
+    
+    try:
+        # Rate limit protection if running in batch (caller handles big loops, but small safety here)
+        # time.sleep(1) 
+        
+        response = client.models.generate_content(
+            model='gemini-3-flash-preview', # Updated to valid model
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                response_mime_type='application/json'
+            )
+        )
+        
+        text = response.text.strip()
+        if text.startswith("```json"): text = text[7:]
+        if text.endswith("```"): text = text[:-3]
+        
+        try:
+            result = json.loads(text)
+            
+            # Handle potential list response
+            if isinstance(result, list):
+                if len(result) > 0:
+                    result = result[0]
+                else:
+                    print(f"Empty list returned for {product_name}")
+                    return
+        except json.JSONDecodeError:
+            print(f"JSON Decode Error for {product_name}: {text}")
+            return
+
+        found_price = result.get('lowest_price')
+        found_url = result.get('url')
+        
+        if found_price and isinstance(found_price, (int, float)):
+            # Check if lower
+            if found_price < original_price:
+                print(f"📉 PRICE DROP FOUND: ${found_price} at {result.get('retailer')}")
+                
+                # Update Item
+                auth.update_action_item(uid, 'price_protection', item_id, {
+                    "lowest_price_found": found_price,
+                    "lowest_price_url": found_url,
+                    "last_checked": firestore.SERVER_TIMESTAMP,
+                })
+            else:
+                print(f"No drop. Lowest found: ${found_price}")
+                # Update last check anyway
+                auth.update_action_item(uid, 'price_protection', item_id, {
+                    "last_checked": firestore.SERVER_TIMESTAMP
+                })
+        else:
+            print("Could not verify price.")
+            
+    except Exception as e:
+        print(f"Error checking {product_name}: {e}")
+
 def check_price_drops():
     """
     CRON JOB: Runs Daily at Midnight.
@@ -141,75 +242,9 @@ def check_price_drops():
         print(f"Found {len(items)} items to monitor.")
         
         for item in items:
-            item_id = item.get('id')
-            uid = item.get('uid')
-            product_name = item.get('item_bought')
-            original_price = item.get('total')
-            
-            if not product_name or not uid:
-                continue
-                
-            print(f"Checking price for: {product_name} (Paid: ${original_price})")
-            
-            # 2. Ask Gemini 3 Flash
-            prompt = f"""
-            Search specifically for the CURRENT lowest price of this exact product: "{product_name}".
-            Search all major retailers (Amazon, Best Buy, Walmart, Target, Manufacturer Store).
-            
-            Identify the lowest valid price currently available for a NEW (not used/refurbished) item.
-            
-            Return JSON:
-            {{
-                "lowest_price": 123.45,
-                "retailer": "Store Name",
-                "url": "Link to deal"
-            }}
-            
-            If no clear price found, return null for lowest_price.
-            """
-            
-            try:
-                # Rate limit protection
-                time.sleep(1)
-                
-                response = client.models.generate_content(
-                    model='gemini-3-flash', # User Requested Model
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        tools=[types.Tool(google_search=types.GoogleSearch())],
-                        response_mime_type='application/json'
-                    )
-                )
-                
-                text = response.text.strip()
-                if text.startswith("```json"): text = text[7:]
-                if text.endswith("```"): text = text[:-3]
-                
-                result = json.loads(text)
-                found_price = result.get('lowest_price')
-                
-                if found_price and isinstance(found_price, (int, float)):
-                    # Check if lower
-                    if found_price < original_price:
-                        print(f"📉 PRICE DROP FOUND: ${found_price} at {result.get('retailer')}")
-                        
-                        # Update Item
-                        auth.update_action_item(uid, 'price_protection', item_id, {
-                            "lowest_price_found": found_price,
-                            "last_checked": firestore.SERVER_TIMESTAMP,
-                            # We could add specific fields for URL etc if model supported it
-                        })
-                    else:
-                        print(f"No drop. Lowest found: ${found_price}")
-                        # Update last check anyway
-                        auth.update_action_item(uid, 'price_protection', item_id, {
-                            "last_checked": firestore.SERVER_TIMESTAMP
-                        })
-                else:
-                    print("Could not verify price.")
-                    
-            except Exception as e:
-                print(f"Error checking {product_name}: {e}")
+            check_single_item_price(item, client)
+            # Add delay to avoid rate limits
+            time.sleep(1)
                 
         print("--- ✅ PRICE CHECK JOB COMPLETE ---")
 

@@ -99,7 +99,9 @@ class ActionItem(BaseModel):
     
     # Price Protection Specifics
     monitor_price: bool = False
+    monitor_price: bool = False
     lowest_price_found: float | None = None
+    lowest_price_url: str | None = None
     last_checked: str | None = None
 
 class HelpRequest(BaseModel):

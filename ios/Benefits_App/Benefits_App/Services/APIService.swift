@@ -523,6 +523,7 @@ struct ActionItem: Codable, Identifiable {
     // Price Protection
     var monitor_price: Bool?
     var lowest_price_found: Double?
+    var lowest_price_url: String?
     var last_checked: String?
 }
 
@@ -585,6 +586,14 @@ extension APIService {
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
             throw URLError(.badServerResponse)
         }
+    }
+    
+    func deleteActionItem(category: String, itemId: String) async throws {
+        guard let url = URL(string: "\(baseURL)/actions/\(category)/\(itemId)") else {
+            throw URLError(.badURL)
+        }
+        
+        try await performRequest(url: url, method: "DELETE")
     }
     
     // MARK: - Agent

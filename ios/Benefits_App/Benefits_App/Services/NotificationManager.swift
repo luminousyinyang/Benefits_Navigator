@@ -44,4 +44,19 @@ class NotificationManager: NSObject {
             }
         }
     }
+    func sendPriceDropNotification(item: String, saved: Double, foundPrice: Double) {
+        let content = UNMutableNotificationContent()
+        content.title = "Price Drop Detected! 📉"
+        content.body = "Found a lower price for \(item). New Price: $\(String(format: "%.2f", foundPrice)). You save $\(String(format: "%.2f", saved))!"
+        content.sound = .default
+        
+        // Immediate trigger
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error showing notification: \(error)")
+            }
+        }
+    }
 }

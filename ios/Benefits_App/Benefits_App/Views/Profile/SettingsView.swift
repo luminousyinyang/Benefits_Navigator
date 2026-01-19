@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject var actionManager: ActionManager
     @Environment(\.dismiss) var dismiss
     
     // Custom Colors
@@ -39,6 +40,42 @@ struct SettingsView: View {
                 showAlert = true
             } catch {
                 alertMessage = "Error: \(error.localizedDescription)"
+                showAlert = true
+            }
+            isLoading = false
+        }
+        }
+
+    
+    func simulatePriceProtection() {
+        // Create a mock ActionItem for Price Protection
+        let mockItem = ActionItem(
+            id: UUID().uuidString, // Temporary ID, real one comes from backend
+            category: "price_protection",
+            card_id: authManager.userCards.first?.id ?? "mock_card_id",
+            card_name: authManager.userCards.first?.name ?? "Amex Platinum",
+            retailer: "Best Buy",
+            date: "2024-05-15",
+            total: 349.99,
+            car_rented: nil,
+            flight_info: nil,
+            item_bought: "Sony WH-1000XM5 Headphones",
+            phone_bought: nil,
+            help_requested: false,
+            gemini_instructions: nil,
+            monitor_price: true, // Auto-trigger monitor
+            lowest_price_found: nil,
+            last_checked: nil
+        )
+        
+        isLoading = true
+        Task {
+            do {
+                try await actionManager.addItem(category: "price_protection", item: mockItem)
+                alertMessage = "Added 'Sony Headphones' to Price Protection. Backend search triggered."
+                showAlert = true
+            } catch {
+                alertMessage = "Error adding item: \(error.localizedDescription)"
                 showAlert = true
             }
             isLoading = false
@@ -114,9 +151,9 @@ struct SettingsView: View {
                                 .foregroundColor(.white)
                             
                             Button(action: {
-                                LocationManager.shared.simulateDwell(at: "Starbucks")
+                                simulatePriceProtection()
                             }) {
-                                Text("Simulate Stop at Starbucks")
+                                Text("Simulate Price Protection")
                                     .font(.headline)
                                     .foregroundColor(.white)
                                     .padding()

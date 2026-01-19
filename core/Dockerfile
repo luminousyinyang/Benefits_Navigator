@@ -15,9 +15,6 @@ COPY . .
 # Change working directory to the app folder so sibling imports (e.g. 'import models') work
 WORKDIR /app/app
 
-# Set the path to the Firebase credentials file (relative to root /app or absolute)
-ENV FIREBASE_SERVICE_ACCOUNT_PATH=/app/serviceAccountKey.json
-
 # Ensure the container sees the root folder as a package source if needed, 
 # although WORKDIR /app/app usually suffices for sibling imports.
 ENV PYTHONPATH=/app/app
