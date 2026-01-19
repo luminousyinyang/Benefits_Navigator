@@ -30,7 +30,7 @@ class TransactionService: ObservableObject {
     
     // Adjust to your actual backend URL if different
     // Using the same base URL logic as APIService might be cleaner, but hardcoding for now as per previous
-    private let baseURL = "http://10.126.172.26:8000" 
+    // Base URL is now managed in APIService 
     
     // Keys
     private let cacheKey = "cached_transactions"
@@ -48,7 +48,7 @@ class TransactionService: ObservableObject {
             return
         }
         
-        guard let url = URL(string: "\(baseURL)/transactions/") else { return }
+        guard let url = URL(string: "\(APIService.baseURL)/transactions/") else { return }
         
         // Use APIService to get a VALID token (refreshes if needed)
         guard let token = await APIService.shared.getValidToken() else { 
@@ -76,7 +76,7 @@ class TransactionService: ObservableObject {
     // Fetch all transactions without updating the main list or cache
     // This is for search functionality only
     func fetchAllTransactions() async throws -> [Transaction] {
-        guard let url = URL(string: "\(baseURL)/transactions/?limit=-1") else { return [] }
+        guard let url = URL(string: "\(APIService.baseURL)/transactions/?limit=-1") else { return [] }
         
         guard let token = await APIService.shared.getValidToken() else { 
             throw URLError(.userAuthenticationRequired) 
@@ -96,7 +96,7 @@ class TransactionService: ObservableObject {
     }
     
     func uploadStatement(fileURL: URL) async throws {
-        guard let url = URL(string: "\(baseURL)/transactions/upload") else { return }
+        guard let url = URL(string: "\(APIService.baseURL)/transactions/upload") else { return }
         
         guard let token = await APIService.shared.getValidToken() else { 
             throw URLError(.userAuthenticationRequired) 

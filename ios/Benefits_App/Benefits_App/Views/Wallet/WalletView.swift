@@ -146,7 +146,21 @@ struct WalletView: View {
                      RoundedRectangle(cornerRadius: 20)
                         .fill(cardBackground)
                         .frame(width: 320, height: 200)
-                        .overlay(Text("No cards found. Add one in 'My Wallet'.").foregroundColor(textSecondary))
+                        .overlay(
+                            VStack(spacing: 8) {
+                                Image(systemName: "creditcard.circle")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(textSecondary)
+                                Text("No cards found")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                Text("Tap the gear icon above to add a card.")
+                                    .font(.caption)
+                                    .foregroundColor(textSecondary)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                            }
+                        )
                         .tag(Optional<String>.none) // Handle nil tag for empty
                 } else {
                     ForEach(authManager.userCards) { card in
@@ -290,9 +304,17 @@ struct WalletView: View {
                     }
                     
                 } else {
-                    Text("Select a card to view benefits")
-                        .foregroundColor(textSecondary)
-                        .italic()
+                    if authManager.userCards.isEmpty {
+                        Text("Add a card to see your benefits here.")
+                            .foregroundColor(textSecondary)
+                            .italic()
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 20)
+                    } else {
+                        Text("Select a card to view benefits")
+                            .foregroundColor(textSecondary)
+                            .italic()
+                    }
                 }
             }
         }

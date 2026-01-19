@@ -6,7 +6,8 @@ class APIService {
     // Configuration
     // Use "http://127.0.0.1:8000" for iOS Simulator
     // Use your machine's IP address (e.g. "http://192.168.1.5:8000") for physical device
-    private let baseURL = "http://10.126.172.26:8000"
+    static let baseURL = "https://benefits-backend-973496154054.us-east1.run.app"
+    private var baseURL: String { return APIService.baseURL }
 
     private init() {}
 

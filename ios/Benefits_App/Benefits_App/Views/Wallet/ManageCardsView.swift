@@ -52,10 +52,12 @@ struct ManageCardsView: View {
                         
                         // MARK: - Linked Cards Section
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("LINKED CARDS")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(textSecondary.opacity(0.8))
-                                .padding(.leading, 4)
+                            if !authManager.userCards.isEmpty {
+                                Text("LINKED CARDS")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(textSecondary.opacity(0.8))
+                                    .padding(.leading, 4)
+                            }
                             
                             VStack(spacing: 12) {
                                 ForEach(authManager.userCards) { card in

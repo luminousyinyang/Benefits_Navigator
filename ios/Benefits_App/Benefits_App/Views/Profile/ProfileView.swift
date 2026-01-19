@@ -50,19 +50,19 @@ struct ProfileView: View {
                 
                 VStack(spacing: 24) {
                     // MARK: - Header
-                    HStack {
-                        Spacer()
-                        
+                    ZStack {
                         Text("Profile")
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(.white)
                         
-                        Spacer()
-                        
-                        NavigationLink(destination: SettingsView()) {
-                            Image(systemName: "gearshape.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(.white)
+                        HStack {
+                            Spacer()
+                            
+                            NavigationLink(destination: SettingsView()) {
+                                Image(systemName: "gearshape.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.white)
+                            }
                         }
                     }
                     .padding(.horizontal, 24)
