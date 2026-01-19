@@ -5,3 +5,7 @@ requests
 python-dotenv
 pydantic
 google-generativeai
+email-validator
+apscheduler
+google-genai
+python-multipart
