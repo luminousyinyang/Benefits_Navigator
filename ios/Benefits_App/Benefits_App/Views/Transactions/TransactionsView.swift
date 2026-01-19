@@ -10,6 +10,7 @@ struct TransactionsView: View {
     @State private var importErrorMessage = ""
     @State private var isProcessing = false
     @State private var searchText = ""
+    @State private var allTransactions: [Transaction] = [] // Store all transactions for search
     
     // Custom Colors
     let backgroundDark = Color(red: 16/255, green: 24/255, blue: 34/255)
@@ -19,8 +20,14 @@ struct TransactionsView: View {
     var filteredTransactions: [Transaction] {
         if searchText.isEmpty {
             return transactionService.transactions
-        } else {
+        } else if searchText.count < 3 {
+             // If query < 3 chars, search only in top 50 (current cache)
             return transactionService.transactions.filter { $0.retailer.localizedCaseInsensitiveContains(searchText) }
+        } else {
+             // If query >= 3 chars, search in ALL transactions
+             // If allTransactions hasn't loaded yet, fall back to top 50
+             let source = allTransactions.isEmpty ? transactionService.transactions : allTransactions
+             return source.filter { $0.retailer.localizedCaseInsensitiveContains(searchText) }
         }
     }
     
@@ -131,6 +138,11 @@ struct TransactionsView: View {
             }
             .task {
                 await loadData()
+                // Trigger background fetch of all transactions
+                await loadAllTransactions()
+            }
+            .onTapGesture {
+                hideKeyboard()
             }
         }
     }
@@ -184,6 +196,18 @@ struct TransactionsView: View {
         case .failure(let error):
             importErrorMessage = error.localizedDescription
             showImportError = true
+        }
+    }
+    
+    private func loadAllTransactions() async {
+        do {
+            // Fetch all transactions in background to prepare for deep search
+           let all = try await transactionService.fetchAllTransactions()
+           await MainActor.run {
+               self.allTransactions = all
+           }
+        } catch {
+            print("Background fetch error: \(error)")
         }
     }
 }

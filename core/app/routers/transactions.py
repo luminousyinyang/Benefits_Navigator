@@ -270,14 +270,19 @@ async def upload_statement(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/")
-async def get_transactions(uid: str = Depends(get_current_user_uid)):
+async def get_transactions(limit: int = 50, uid: str = Depends(get_current_user_uid)):
     """
-    Fetches all transactions for the user.
+    Fetches transactions for the user. Optional limit (default 50). 
+    Pass limit <= 0 for all transactions.
     """
     try:
         transactions_ref = db.collection('users').document(uid).collection('transactions')
-        # Order by date descending if 'date' is a consistent YYYY-MM-DD string
-        docs = transactions_ref.order_by('date', direction=firestore.Query.DESCENDING).limit(50).stream()
+        query = transactions_ref.order_by('date', direction=firestore.Query.DESCENDING)
+        
+        if limit > 0:
+            query = query.limit(limit)
+            
+        docs = query.stream()
         
         results = []
         for doc in docs:

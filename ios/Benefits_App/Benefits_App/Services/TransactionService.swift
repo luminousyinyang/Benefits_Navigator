@@ -73,6 +73,28 @@ class TransactionService: ObservableObject {
         }
     }
     
+    // Fetch all transactions without updating the main list or cache
+    // This is for search functionality only
+    func fetchAllTransactions() async throws -> [Transaction] {
+        guard let url = URL(string: "\(baseURL)/transactions/?limit=-1") else { return [] }
+        
+        guard let token = await APIService.shared.getValidToken() else { 
+            throw URLError(.userAuthenticationRequired) 
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
+        
+        return try JSONDecoder().decode([Transaction].self, from: data)
+    }
+    
     func uploadStatement(fileURL: URL) async throws {
         guard let url = URL(string: "\(baseURL)/transactions/upload") else { return }
         
