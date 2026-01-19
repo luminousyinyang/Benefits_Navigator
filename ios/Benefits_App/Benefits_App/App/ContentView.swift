@@ -33,9 +33,7 @@ struct ContentView: View {
                     MainTabView()
                 }
             } else {
-                NavigationView {
-                    AuthView()
-                }
+                AuthView()
             }
         }
         .environmentObject(authManager)

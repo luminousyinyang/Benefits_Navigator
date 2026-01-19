@@ -130,7 +130,8 @@ class MarathonAgent:
             
             STABILITY RULES (CRITICAL):
             1. 🛑 PRESERVE EXISTING: Do NOT change the Title or Icon of existing milestones unless the strategy fundamentally changes. If a milestone is 'completed', keep it exactly as is.
-            2. 🛑 ICONS: Use ONLY simple, valid SF Symbols.
+            2. 🛑 ONE CURRENT STEP: Only ONE milestone can be `current` at any time. If multiple tasks are active, pick the most immediate one as `current` and others as `pending`.
+            3. 🛑 ICONS: Use ONLY simple, valid SF Symbols.
                - SAFE: map.fill, creditcard.fill, airplane, cart.fill, house.fill, star.fill, list.bullet
                - AVOID: complex symbols or those with multiple dots/badges (e.g. 'creditcard.triangle.badge...').
                - If unsure, use 'map.fill' or 'star.fill'.
