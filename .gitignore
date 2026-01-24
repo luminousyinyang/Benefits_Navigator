@@ -68,3 +68,5 @@ serviceAccountKey.json
 __pycache__
 .DS_Store
 GoogleService-Info.plist
+
+reports
