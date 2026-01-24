@@ -256,7 +256,7 @@ def search_card(query: str, current_user: dict = Depends(get_current_user)):
         """
         
         response = client.models.generate_content(
-            model='gemini-3-pro-preview',
+            model='gemini-3-flash-preview',
             contents=prompt,
             config=types.GenerateContentConfig(
                 tools=[types.Tool(google_search=types.GoogleSearch())],
@@ -498,7 +498,7 @@ def get_recommendation(request: RecommendationRequest, current_user: dict = Depe
         """
         
         response = client.models.generate_content(
-            model='gemini-3-pro-preview',
+            model='gemini-3-flash-preview',
             contents=prompt,
             config=types.GenerateContentConfig(
                 tools=[types.Tool(google_search=types.GoogleSearch())],

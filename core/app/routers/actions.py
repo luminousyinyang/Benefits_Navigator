@@ -140,7 +140,7 @@ def get_help_for_item(category: ActionCenterCategory, item_id: str, request: Hel
     
     try:
         response = client.models.generate_content(
-            model='gemini-3-pro-preview',
+            model='gemini-3-flash-preview',
             contents=prompt,
         )
         

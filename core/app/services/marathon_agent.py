@@ -189,7 +189,7 @@ class MarathonAgent:
             """
             
             response = self.client.models.generate_content(
-                model='gemini-3-pro-preview', # Thinking model, supports search
+                model='gemini-3-flash-preview', 
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     tools=[types.Tool(google_search=types.GoogleSearch())],

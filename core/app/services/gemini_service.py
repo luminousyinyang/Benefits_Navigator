@@ -49,7 +49,7 @@ class GeminiService:
             """
 
             response = self.client.models.generate_content(
-                model='gemini-3-pro-preview',
+                model='gemini-3-flash-preview',
                 contents=[
                     types.Content(
                         parts=[

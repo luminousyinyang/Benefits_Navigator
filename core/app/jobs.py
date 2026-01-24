@@ -85,7 +85,7 @@ def update_all_cards():
                 time.sleep(2) 
                 
                 response = client.models.generate_content(
-                    model='gemini-3-pro-preview',
+                    model='gemini-3-flash-preview',
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         tools=[types.Tool(google_search=types.GoogleSearch())],
