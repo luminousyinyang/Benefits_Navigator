@@ -117,7 +117,7 @@ class AgentPrivateState(BaseModel):
 class Milestone(BaseModel):
     id: str
     title: str
-    description: str
+    description: str = ""
     status: str # "completed", "current", "locked"
     date: str | None = None
     icon: str = "star.fill" # SF Symbol name
@@ -149,7 +149,8 @@ class AgentPublicState(BaseModel):
     next_action: str | None = "Analyzing..." # Kept for backward compatibility
     action_date: str | None = None # Kept for backward compatibility
     reasoning_summary: str | None = "Agent is starting..."
-    status: str | None = None # "thinking", "idle"
+    status: str | None = None # "thinking", "idle", "error"
+    error_message: str | None = None # New field for user-facing errors
     optional_tasks: list[OptionalTask] = [] # New Field
 
 class AgentStartRequest(BaseModel):

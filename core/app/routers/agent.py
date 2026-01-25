@@ -38,7 +38,8 @@ def start_agent(request: AgentStartRequest, background_tasks: BackgroundTasks, c
         public_ref = auth.db.collection('users').document(uid).collection('public_agent_state').document('main')
         public_ref.set({
             "target_goal": request.goal,
-            "status": "thinking" # UI can show loading based on this
+            "status": "thinking", # UI can show loading based on this
+            "error_message": None # Clear any previous error
         }, merge=True)
         
         # 2. Trigger Agent Cycle in Background

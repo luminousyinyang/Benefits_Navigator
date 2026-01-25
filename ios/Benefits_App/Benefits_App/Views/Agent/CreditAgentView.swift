@@ -55,6 +55,55 @@ struct CreditAgentView: View {
                     }
                 }
             }
+            // Error Overlay
+            if let state = agentService.state, state.status == "error" {
+                Color.black.opacity(0.6).ignoresSafeArea()
+                
+                VStack(spacing: 20) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.red)
+                    
+                    Text("Planning Error")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Text(state.error_message ?? "Something went wrong. Please try again.")
+                        .font(.body)
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    Button(action: {
+                        if let roadmap = state.roadmap, !roadmap.isEmpty {
+                            // Dismiss error, show existing roadmap
+                            var newState = state
+                            newState.status = "idle"
+                            agentService.state = newState
+                        } else {
+                            // No previous roadmap -> Go to start screen
+                            agentService.clearState()
+                        }
+                    }) {
+                        Text("Go Back")
+                            .bold()
+                            .padding(.horizontal, 30)
+                            .padding(.vertical, 12)
+                            .background(Color.white.opacity(0.2))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.white, lineWidth: 1)
+                            )
+                    }
+                }
+                .padding(40)
+                .background(Color(hex: "1E293B"))
+                .cornerRadius(20)
+                .padding()
+            }
+            
             // Move Thinking Overlay to HERE (Top of ZStack) to cover everything including header
             if let state = agentService.state, state.status == "thinking" {
                 Color.black.opacity(0.6).ignoresSafeArea() // Darker opacity

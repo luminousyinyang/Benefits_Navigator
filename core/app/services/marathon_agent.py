@@ -6,6 +6,7 @@ from google import genai
 from google.genai import types
 import auth
 from models import AgentPrivateState, AgentPublicState
+from pydantic import ValidationError
 import services.constraints as constraints
 from firebase_admin import firestore
 
@@ -103,7 +104,15 @@ class MarathonAgent:
                     for m in existing_roadmap:
                         icon = m.get('icon', 'map.fill')
                         status = m.get('status', 'pending')
-                        roadmap_context += f"- [{status}] {m.get('title')} (Icon: {icon})\n"
+                        notes = m.get('user_notes', '')
+                        
+                        note_str = ""
+                        if notes:
+                            note_str = f" [USER FEEDBACK: \"{notes}\"]"
+                            
+                        roadmap_context += f"- [{status}] {m.get('title')} (Icon: {icon}){note_str}\n"
+            
+            print(f"DEBUG ROADMAP CONTEXT:\n{roadmap_context}")
 
             # Retrieve Financial Context
             financial_profile_str = ""
@@ -137,7 +146,10 @@ class MarathonAgent:
                - If unsure, use 'map.fill' or 'star.fill'.
             
             TASK:
-            1. 🔍 CHECK USER UPDATES: Scan current milestones for `user_notes`. If the user has flagged a roadblock (e.g., "Rejected", "Too expensive", "Don't want to"), you MUST adjust the plan accordingly.
+            1. 🔍 CHECK USER UPDATES: Scan current milestones for `[USER FEEDBACK: ...]`. 
+               - **CRITICAL**: You MUST prioritize this feedback above all else. The user's input is the source of truth.
+               - If the user requests a change (e.g., "new card", "skip this", "too expensive", "I already did this", "change goal"), you **MUST** modify the roadmap to satisfy their request immediately.
+               - If they ask for a new recommendation, provide a **different** option. Do not ignore their request or double down on the previous one.
             2. 🌍 DEEP WEB SEARCH: 
                - If this is a **NEW GOAL** (roadmap empty), search extensively to build the best strategy from scratch.
                - If this is a **WEEKLY RUN**, search for *new* offers or changes that might accelerate the goal.
@@ -155,7 +167,9 @@ class MarathonAgent:
 
             OUTPUT RULES:
             - **Google Search**: Verify offers.
-            - **Milestones**: Same rules as before.
+            - **Milestones**: 
+              - Must include `id`, `title`, `description` (REQUIRED for ALL statuses, including 'completed'), `status`, `icon`.
+              - `description` must explain *how* to achieve the milestone (or what was done if completed).
             - **Optional Tasks**:
               - `id`: Unique string.
               - `title`: Short action title.
@@ -170,7 +184,15 @@ class MarathonAgent:
                 "public_plan": {{
                     "target_goal": "{current_goal}",
                     "progress_percentage": 50,
-                    "roadmap": [...],
+                    "roadmap": [
+                        {{
+                            "id": "ms_1",
+                            "title": "Apply for Card X",
+                            "description": "Go to the bank website and apply. Ensure you have your income details ready.",
+                            "status": "current",
+                            "icon": "creditcard.fill"
+                        }}
+                    ],
                     "optional_tasks": [
                         {{
                             "id": "sq_1",
@@ -217,15 +239,37 @@ class MarathonAgent:
             
             # Save Public State (The UI)
             # Ensure we keep the target_goal if not returned (it might not be)
-            if 'target_goal' not in public_plan:
-                public_plan['target_goal'] = current_goal
-            
-            # Set status to idle so the UI stops spinning
-            public_plan['status'] = "idle"
+            # Validate Public Plan before saving
+            try:
+                # Ensure target_goal is present for validation if it wasn't in the output
+                if 'target_goal' not in public_plan:
+                    public_plan['target_goal'] = current_goal
                 
-            public_ref.set(public_plan, merge=True)
-            
-            print(f"✅ Agent Cycle Complete. Next Action: {public_plan.get('next_action')}")
+                # attempt to validate
+                validated_state = AgentPublicState(**public_plan)
+                
+                # If valid, we can save. 
+                # Note: We might want to use validated_state.dict() to ensure clean data, 
+                # but valid public_plan dict is also fine.
+                
+                # Set status to idle so the UI stops spinning
+                public_plan['status'] = "idle"
+                public_plan['error_message'] = None # Clear any previous error
+                    
+                public_ref.set(public_plan, merge=True)
+                print(f"✅ Agent Cycle Complete. Next Action: {public_plan.get('next_action')}")
+
+            except ValidationError as ve:
+                print(f"❌ DATA VALIDATION ERROR: The agent generated invalid data: {ve}")
+                
+                # Update status to error so the UI shows the message. 
+                # merge=True ensures we preserve the existing roadmap/goal.
+                public_ref.set({
+                    "status": "error",
+                    "error_message": "I encountered an issue generating your plan. Please try again."
+                }, merge=True)
+
+
 
         except Exception as e:
             print(f"❌ MarathonAgent Error: {e}")

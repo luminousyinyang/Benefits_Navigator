@@ -8,6 +8,7 @@ class AgentService: ObservableObject {
     @Published var isLoading = false
     
     private let kCachedAgentState = "cached_agent_state"
+    private var ignoreStaleErrors = true // Default to true on app launch
     
     init() {
         loadCache()
@@ -18,6 +19,19 @@ class AgentService: ObservableObject {
         isLoading = true
         do {
             let fetched = try await APIService.shared.fetchAgentState()
+            
+            // Check for stale error on launch
+            if ignoreStaleErrors {
+                ignoreStaleErrors = false // Only check once
+                if let s = fetched, s.status == "error", (s.roadmap ?? []).isEmpty {
+                    print("Suppressing stale error on launch")
+                    self.state = nil
+                    self.saveCache(nil)
+                    self.isLoading = false
+                    return
+                }
+            }
+            
             self.state = fetched
             self.isLoading = false
             self.saveCache(fetched)
@@ -28,6 +42,7 @@ class AgentService: ObservableObject {
     }
     
     func startAgent(goal: String) async throws {
+        ignoreStaleErrors = false // User Initiated -> Show errors
         try await APIService.shared.startAgent(goal: goal)
         // Start polling for updates (non-blocking)
         Task { await startPolling() }

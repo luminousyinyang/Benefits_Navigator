@@ -693,6 +693,7 @@ struct AgentPublicState: Codable {
     let next_action: String?
     let action_date: String?
     let reasoning_summary: String?
-    let status: String?
+    var status: String?
+    let error_message: String? // New Field for user-facing errors
     let optional_tasks: [OptionalTaskModel]? // New Field
 }
