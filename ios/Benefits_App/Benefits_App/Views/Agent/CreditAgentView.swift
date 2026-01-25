@@ -7,6 +7,7 @@ struct CreditAgentView: View {
     @State private var selectedMilestone: Milestone? = nil
     @State private var isNewGoalPresented = false
     @State private var showSideQuests = false
+    @State private var showFullGoal = false
     
     var body: some View {
         ZStack {
@@ -144,6 +145,13 @@ struct CreditAgentView: View {
         .sheet(isPresented: $isNewGoalPresented) {
             NewGoalView(agentService: agentService)
         }
+        .sheet(isPresented: $showFullGoal) {
+            if let goal = agentService.state?.target_goal {
+                GoalDetailView(goalText: goal)
+                    .presentationDetents([.height(300), .medium]) // Smaller than half screen preferred, but expandable
+                    .presentationDragIndicator(.visible)
+            }
+        }
         .sheet(isPresented: $showSideQuests) {
             if let tasks = agentService.state?.optional_tasks {
                 SideQuestsView(tasks: tasks)
@@ -159,8 +167,6 @@ struct CreditAgentView: View {
         agentService.stopPolling()
     }
     }
-    
-    // ... Onboarding View remains unchanged ...
     
     // MARK: - Onboarding View
     
@@ -248,6 +254,9 @@ struct CreditAgentView: View {
                             .font(.title3.bold())
                             .foregroundColor(.white)
                             .lineLimit(2)
+                    }
+                    .onTapGesture {
+                        showFullGoal = true
                     }
                     Spacer()
                     
