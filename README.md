@@ -1,115 +1,175 @@
-# Benefits Navigator 💳🚀
+# Benefits Navigator 💳 ✨
 
-**Benefits Navigator** is an AI-powered financial assistant designed to help you maximize your credit card rewards, discover hidden perks, and achieve long-term financial goals. Built for the **Gemini 3 Hackathon**, it leverages Google's latest **Gemini 3 models** with **Google Search Grounding** to provide real-time, accurate financial advice.
+**Benefits Navigator** is an AI-powered financial assistant designed to help you strictly maximize your credit card rewards, discover hidden benefits, and achieve your financial goals with personalized "Agentic" roadmaps.
 
-## 🌟 Key Features
+Built with **SwiftUI** for a premium iOS experience and **FastAPI** + **Google Gemini 3.0 Flash** for intelligent backend processing.
 
-*   **🧠 AI-Powered Card Search**: Instantly find detailed benefits, earning rates, and multipliers for *any* credit card. Gemini acts as a researcher, finding the official "Guide to Benefits" to ensure accuracy rather than relying on generic data.
-*   **🛍️ Smart Recommendations**: Not sure which card to use at checkout? The app analyzes your specific wallet and the store you're visiting (e.g., "Whole Foods", "Delta Airlines") to recommend the single best card. It considers:
-    *   **Value**: Highest cashback or points multiplier.
-    *   **Protection**: Purchase protection, extended warranty, or travel insurance if relevant.
-    *   **User Goals**: Prioritizes miles vs. cash back based on your preferences.
-*   **🏃‍♂️ Marathon Agent**: A background "strategist" agent that monitors your progress. It:
-    *   Creates a dynamic **Financial Roadmap** (e.g., "Apply for Card X", "Spend $4k in 3 months").
-    *   Tracks sign-up bonus progress.
-    *   Updates plans based on new offers or life changes.
-*   **📱 Native iOS Experience**: A sleek, dark-themed SwiftUI application to manage your wallet, view the roadmap, and get quick recommendations.
+---
+
+## 🚀 Features
+
+### 🧠 AI Card Intelligence
+- **Instant Recognition**: Search for any credit card (e.g., "Amex Gold", "Sapphire Reserve"), and the app uses **Google Gemini + Google Search** to find the latest official benefits, earning rates, and perks.
+
+### 💡 Smart Recommendations
+- **Context-Aware Suggestions**: Buying coffee? Booking a flight? The app analyzes your specific wallet to recommend the *single best card* to use.
+- **Strategy Modes**:
+    - **Maximize Value**: Pure math (highest points/cashback multiplier).
+    - **Category Priority**: "I need Flight Insurance" or "Extended Warranty" takes precedence over points.
+
+### 🤖 Financial Agent
+- **Goal Roadmaps**: Tell the Agent "I want a trip to Japan" or "I want to maximize cashback." It builds a step-by-step **Roadmap** (Milestones) to get you there (e.g., "Open Card X", "Hit Spend Requirement Y").
+- **Active Tracking**: Tracks your sign-on bonuses and spending goals in real-time.
+
+### 🛡️ Action Center
+- **Price Protection**: Monitors price drops for recent purchases.
+- **Warranty Manager**: Keeps track of extended warranty coverage.
 
 ---
 
 ## 🏗️ Architecture
 
-The project consists of a Python FastAPI backend and a native iOS frontend.
-
-### 🐍 Backend (`core/`)
-*   **Framework**: FastAPI
-*   **Database**: Firebase Firestore (User data, Wallet, Agent State)
-*   **Auth**: Firebase Authentication
-*   **AI Engine**: Google Gemini 3 Pro Preview (via `google-genai` SDK)
-*   **Key Services**:
-    *   `marathon_agent.py`: The long-running loop that acts as your financial strategist.
-    *   `main.py`: REST API for the iOS app.
-    *   `gemini_service.py`: Wrappers for robust AI interactions.
-
-### 🍎 iOS App (`ios/`)
-*   **Framework**: SwiftUI
-*   **Architecture**: MVVM
-*   **Features**:
-    *   **Wallet View**: Digital representation of your cards.
-    *   **Agent View**: Visual roadmap of your financial journey.
-    *   **Scanner/Search**: Input for getting card recommendations.
+```mermaid
+graph TD
+    User[📱 iOS User] -->|HTTPS / JSON| Client[iOS App (SwiftUI)]
+    
+    subgraph "Backend Services"
+        Client -->|REST API| API[FastAPI Server]
+        API -->|Background Jobs| Scheduler[APScheduler]
+        API -->|Database & Auth| FB[(Firebase Firestore & Auth)]
+    end
+    
+    subgraph "AI & External"
+        API -->|GenAI Operations| Gemini[Google Gemini 3.0 Flash]
+        Gemini -->|Grounding| Search[Google Search]
+    end
+```
 
 ---
 
-## 🚀 Getting Started
+## 🛠️ Project Structure
+
+- **`/core`**: Python FastAPI Backend.
+    - `app/main.py`: API Entry point and Routes.
+    - `app/auth.py`: Firebase Authentication & Database logic.
+    - `app/services/`: Business logic.
+    - `Dockerfile`: Configuration for Google Cloud Run deployment.
+- **`/ios`**: native iOS Client.
+    - `Benefits_App/`: Main source code.
+    - `Services/`: Networking layer (APIService, AgentService).
+    - `Views/`: SwiftUI Views (MVVM architecture).
+
+---
+
+## ⚡ Getting Started
 
 ### Prerequisites
-*   Python 3.10+
-*   Xcode 15+ (for iOS App)
-*   Firebase Project (with Firestore and Auth enabled)
-*   Google Gemini API Key
 
-### 1. Backend Setup
-Navigate to the `core` directory:
+- **Backend**: Python 3.11+
+- **Frontend**: macOS with Xcode 15+ (Targeting iOS 18+)
+- **Cloud**: 
+    - [Firebase Project](https://firebase.google.com/) (Auth & Firestore enabled)
+    - [Google Cloud Project](https://console.cloud.google.com/) (Gemini API access)
 
-```bash
-cd core
-```
+### 🐍 Backend Setup (Core)
 
-Create a virtual environment and install dependencies:
+1.  **Navigate to the core directory**:
+    ```bash
+    cd core
+    ```
 
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
+2.  **Create and Activate Virtual Environment**:
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate  # Windows: venv\Scripts\activate
+    ```
 
-Set up environment variables:
-Create a `.env` file in `core/` with:
-```bash
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-*Also place your Firebase `serviceAccountKey.json` in the `core/` directory.*
+3.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-Run the server:
-```bash
-python app/main.py
-```
-*The server will start at `http://0.0.0.0:8000`*
+4.  **Configuration**:
+    Create a `.env` file in `core/` with the following secrets:
+    ```ini
+    # Path to your Firebase Admin SDK JSON file
+    FIREBASE_SERVICE_ACCOUNT_PATH=/absolute/path/to/serviceAccountKey.json
+    
+    # Firebase Web API Key (Project Settings > General)
+    FIREBASE_WEB_API_KEY=AIzaSy...
+    
+    # Google Gemini API Key (aistudio.google.com)
+    GEMINI_API_KEY=AIzaSy...
+    ```
+    > **Note**: You must download a `serviceAccountKey.json` from Firebase Console (Project Settings > Service Accounts) and place it in the `core/` folder or referenced path.
 
-### 2. iOS App Setup
-1.  Open `ios/Benefits_App/Benefits_App.xcodeproj` in Xcode.
-2.  Ensure you have your `GoogleService-Info.plist` (Firebase config) added to the project.
-3.  Update the `APIService.swift` (or relevant network file) to point to your local backend IP if testing on a physical device, or `localhost` for simulator.
-4.  Build and run!
+5.  **Run Locally**:
+    ```bash
+    cd app
+    uvicorn main:app --reload --host 0.0.0.0 --port 8000
+    ```
+    The API will be available at `http://localhost:8000`. API Docs at `http://localhost:8000/docs`.
 
-### 3. Firestore Indexes
-For the Price Protection monitoring job to work, you must create a **Collection Group Index**.
-*   **Collection ID**: `price_protection`
-*   **Field**: `monitor_price`
-*   **Mode**: Ascending
+### 🍎 iOS App Setup
 
-If you see a "requires a COLLECTION_GROUP_ASC index" error in your server logs, click the link provided in the error message to automatically create this index in the Firebase Console.
+1.  **Open Project**:
+    Double-click `ios/Benefits_App/Benefits_App.xcodeproj` to open in Xcode.
+
+2.  **Firebase Config**:
+    - Download `GoogleService-Info.plist` from your Firebase Console (iOS App setup).
+    - Drag and drop it into the `ios/Benefits_App/Benefits_App/Resources` folder in Xcode.
+    - **Ensure "Copy items if needed" is checked.**
+
+3.  **Configure API Endpoint**:
+    - Open `ios/Benefits_App/Benefits_App/Services/APIService.swift`.
+    - Modify the `baseURL` variable to point to your local backend for testing:
+      ```swift
+      // For Simulator
+      static let baseURL = "http://127.0.0.1:8000" 
+      // For Physical Device (same Wi-Fi)
+      // static let baseURL = "http://192.168.1.5:8000"
+      ```
+
+4.  **Build & Run**:
+    - Select a Simulator (e.g., iPhone 15 Pro) and press **Cmd+R**.
 
 ---
 
-## 🤖 AI Logic (The "Magic")
+## 🚢 Deployment
 
-### Card Search Prompting
-We don't just ask "What are the benefits?". We use **Chain of Thought** prompting to force Gemini to:
-1.  Identify the card issuer.
-2.  Search for the *PDF Guide to Benefits*.
-3.  Extract specific multipliers (e.g., "4x on Dining").
-4.  Group benefits logically.
+### Docker & Cloud Run
 
-### Marathon Agent
-The agent follows a **Wake -> Think -> Act -> Sleep** cycle:
-1.  **Wake**: Loads user state and "Thought Signature" (memory of previous reasoning).
-2.  **Think**: Uses Gemini to analyze the user's progress against the roadmap. It can "lock" future steps or "complete" current ones.
-3.  **Act**: Updates the Firestore database with the new public plan.
-4.  **Sleep**: Schedules the next check-in.
+The backend is containerized for easy deployment to **Google Cloud Run**.
+
+1.  **Build & Submit**:
+    ```bash
+    cd core
+    chmod +x deploy.sh
+    ./deploy.sh [YOUR_PROJECT_ID]
+    ```
+    *Note: Ensure you have `gcloud` CLI installed and authenticated.*
+
+2.  **Verify**:
+    The script deploys to Cloud Run and outputs the public URL. Update your iOS `APIService.swift` with this URL for production usage.
 
 ---
 
-## 📄 License
-Created for the Gemini 3 Hackathon.
+## 📦 Tech Stack Details
+
+| Component | Technology | Description |
+| :--- | :--- | :--- |
+| **Backend** | Python 3.11 / FastAPI | High-performance async API framework. |
+| **Database** | Firebase Firestore | NoSQL real-time database for user data/cards. |
+| **Auth** | Firebase Auth | Secure email/password & social login. |
+| **AI Model** | Gemini 3.0 Flash | Used for "Grounding" (Search) and Agent logic. |
+| **Scheduling** | APScheduler | Handles background tasks. |
+| **iOS** | Swift / SwiftUI | Modern reactive UI framework. |
+
+---
+
+## ⚠️ Troubleshooting
+
+- **"AI Service Unavailable"**: Ensure `GEMINI_API_KEY` is set in your `.env` and the API key has access to `gemini-3-flash-preview` (or change model name in `main.py`).
+- **Firebase Auth Errors**: Check that the `FIREBASE_WEB_API_KEY` matches the project in your `serviceAccountKey.json`.
+- **iOS Connection Refused**: If running on Simulator, use `127.0.0.1`. If on a real device, ensure your Mac and iPhone are on the same Wi-Fi and use your Mac's local IP.
+
