@@ -9,20 +9,22 @@ import jobs as jobs
 
 load_dotenv()
 
-app = FastAPI(title="Benefits App Backend")
+
+
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    jobs.start_scheduler()
+    yield
+    jobs.shutdown_scheduler()
+
+app = FastAPI(title="Benefits App Backend", lifespan=lifespan)
 
 from routers import transactions, actions, agent
 app.include_router(transactions.router)
 app.include_router(actions.router)
 app.include_router(agent.router)
-
-@app.on_event("startup")
-def startup_event():
-    jobs.start_scheduler()
-
-@app.on_event("shutdown")
-def shutdown_event():
-    jobs.shutdown_scheduler()
 
 # Initialize Gemini Client
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -154,11 +156,7 @@ def complete_onboarding(current_user: dict = Depends(get_current_user)):
     except HTTPException as e:
         raise e
 
-import google.generativeai as genai_deprecated # Avoid conflict if needed, or remove
-from google import genai
-from google.genai import types
 
-# ... impots ...
 
 # Initialize Gemini Client
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
