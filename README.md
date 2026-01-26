@@ -31,7 +31,7 @@ Built with **SwiftUI** for a premium iOS experience and **FastAPI** + **Google G
 
 The system follows a **Client-Server** architecture with an **Agentic Loop**.
 
-![Project Architecture](assets/architecture.png)
+![Project Architecture](architecture.mmd)
 
 ### Component Breakdown
 
