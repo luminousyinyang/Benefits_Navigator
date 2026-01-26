@@ -29,35 +29,35 @@ Built with **SwiftUI** for a premium iOS experience and **FastAPI** + **Google G
 
 ## 🏗️ Architecture
 
-```mermaid
-graph TD
-    User[📱 iOS User] -->|HTTPS / JSON| Client[iOS App (SwiftUI)]
-    
-    subgraph "Backend Services"
-        Client -->|REST API| API[FastAPI Server]
-        API -->|Background Jobs| Scheduler[APScheduler]
-        API -->|Database & Auth| FB[(Firebase Firestore & Auth)]
-    end
-    
-    subgraph "AI & External"
-        API -->|GenAI Operations| Gemini[Google Gemini 3.0 Flash]
-        Gemini -->|Grounding| Search[Google Search]
-    end
-```
+The system follows a **Client-Server** architecture with an **Agentic Loop**.
 
----
+![Project Architecture](assets/architecture.png)
 
-## 🛠️ Project Structure
+### Component Breakdown
 
-- **`/core`**: Python FastAPI Backend.
-    - `app/main.py`: API Entry point and Routes.
-    - `app/auth.py`: Firebase Authentication & Database logic.
-    - `app/services/`: Business logic.
-    - `Dockerfile`: Configuration for Google Cloud Run deployment.
-- **`/ios`**: native iOS Client.
-    - `Benefits_App/`: Main source code.
-    - `Services/`: Networking layer (APIService, AgentService).
-    - `Views/`: SwiftUI Views (MVVM architecture).
+#### 1. Backend (`core/`)
+- **Framework**: FastAPI (Python) running on Uvicorn.
+- **Key Modules**:
+    - `main.py`: Entry point, dependency injection, and centralized routing.
+    - `services/marathon_agent.py`: The brain of the application. Implements a "Wake -> Think -> Act" cycle.
+        - **Input**: User's wallet, transaction history, goals.
+        - **Output**: A structured `public_plan` (Roadmap) + `thought_signature`.
+    - `services/gemini_service.py`: Helper for complex AI tasks like **Smart Card Search** and **Recommendations**.
+    - `routers/`:
+        - `agent.py`: Manages the agent lifecycle (start, update milestone, complete task). Uses `BackgroundTasks` to keep the UI responsive while the Agent "thinks".
+        - `actions.py`: Manages actionable insights (Price Protection, Missing Points).
+- **AI Integration**:
+    - **Model**: `gemini-3-flash-preview` (consistently used for speed and reasoning).
+    - **Tools**: `google_search` is enabled to verify offers and find real-time store data.
+
+#### 2. iOS Client (`ios/`)
+- **Language**: Swift (SwiftUI).
+- **Key Services**:
+    - `APIService.swift`: Centralized networking layer. Handles Auth tokens (Firebase) and direct API calls.
+    - `AgentService.swift`: Manages the "Long-Running" state.
+        - **Polling Mechanism**: Detects when the backend agent switches from "thinking" to "idle" to update the UI.
+        - **Caching**: caches `AgentPublicState` in `UserDefaults`.
+- **UI Architecture**: MVVM (Model-View-ViewModel) pattern observed in Views and Services.
 
 ---
 
@@ -172,4 +172,3 @@ The backend is containerized for easy deployment to **Google Cloud Run**.
 - **"AI Service Unavailable"**: Ensure `GEMINI_API_KEY` is set in your `.env` and the API key has access to `gemini-3-flash-preview` (or change model name in `main.py`).
 - **Firebase Auth Errors**: Check that the `FIREBASE_WEB_API_KEY` matches the project in your `serviceAccountKey.json`.
 - **iOS Connection Refused**: If running on Simulator, use `127.0.0.1`. If on a real device, ensure your Mac and iPhone are on the same Wi-Fi and use your Mac's local IP.
-
