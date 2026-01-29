@@ -8,6 +8,7 @@ struct TransactionsView: View {
     @State private var isImporting = false
     @State private var showImportError = false
     @State private var importErrorMessage = ""
+    @State private var showInfoPopup = false
     @State private var isProcessing = false
     @State private var searchText = ""
     @State private var allTransactions: [Transaction] = [] // Store all transactions for search
@@ -55,6 +56,20 @@ struct TransactionsView: View {
                         Text("Transactions")
                             .font(.system(size: 28, weight: .bold))
                             .foregroundColor(.white)
+                        
+                        Button(action: {
+                            showInfoPopup = true
+                        }) {
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 20))
+                                .foregroundColor(.gray)
+                        }
+                        .alert("How to Add Transactions", isPresented: $showInfoPopup) {
+                            Button("OK", role: .cancel) { }
+                        } message: {
+                            Text("To add transactions, please upload a PDF of your monthly card statement.")
+                        }
+
                         Spacer()
                         
                         Button(action: {
