@@ -39,7 +39,11 @@ def start_agent(request: AgentStartRequest, background_tasks: BackgroundTasks, c
         public_ref.set({
             "target_goal": request.goal,
             "status": "thinking", # UI can show loading based on this
-            "error_message": None # Clear any previous error
+            "error_message": None, # Clear any previous error
+            "roadmap": [], # Clear previous roadmap
+            "progress_percentage": 0, # Reset progress
+            "reasoning_summary": "Agent is starting...",
+            "optional_tasks": [] # Clear side quests
         }, merge=True)
         
         # 2. Trigger Agent Cycle in Background

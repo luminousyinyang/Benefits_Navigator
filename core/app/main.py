@@ -263,7 +263,8 @@ def search_card(query: str, current_user: dict = Depends(get_current_user)):
         )
         
         text = response.text.strip()
-        
+        print(f"DEBUG: Gemini Search Response: {text}")
+
         # Cleanup potential markdown code blocks (even with mime type it can happen)
         if text.startswith("```json"):
             text = text[7:]
@@ -273,11 +274,19 @@ def search_card(query: str, current_user: dict = Depends(get_current_user)):
         import json
         card_data = json.loads(text)
         
+        # Handle case where AI returns a list [ {...} ] instead of just { ... }
+        if isinstance(card_data, list):
+            if len(card_data) > 0:
+                card_data = card_data[0]
+            else:
+                card_data = {}
+
         if not card_data:
              raise HTTPException(status_code=404, detail="Card not found. Please try a different name.")
              
         # Normalize keys just in case
         if "name" not in card_data or "brand" not in card_data:
+             print(f"DEBUG: Invalid Card Data Keys: {card_data.keys()}")
              raise HTTPException(status_code=404, detail="Could not identify card details.")
 
         # 3. Save to global DB

@@ -165,6 +165,16 @@ class MarathonAgent:
                - Identify 2-3 "Side Quests" based on their financial profile or potential bad habits (e.g., "Dining out too much? -> Cook at home", "Unused Subscriptions? -> Cancel").
                - Also look for "Card Perks" side quests (e.g., "Activate Amex Offers", "Use your $50 Hotel Credit").
 
+            6. ⚖️ PROPORTIONALITY & SANITY CHECK (CRITICAL):
+               - **ANALYZE GOAL SCALE**: Is this a "Small Goal" (e.g. "Buy a burger", "New shoes") or a "Large Goal" (e.g. "Flight to Japan", "Buy a House")?
+               - **SMALL GOALS**: Do NOT recommend opening new credit cards or moving assets. Focus on optimizing *existing* cards or simple savings (e.g. "Use your Gold card for 4x points").
+                 - 🚫 Forbidden: "Open Chase Sapphire" for a $15 burger.
+                 - 🚫 Forbidden: "Move $100k" for a minor purchase.
+               - **LARGE GOALS**: Aggressive strategies (new cards, sign-up bonuses) are allowed but must be realistic.
+                 - 🚫 Forbidden: "Move $1M assets" unless the user's profile explicitly shows they HAVE that much.
+                 - 🚫 Forbidden: recommending "Business Cards" (e.g. Ink, Amex Biz) UNLESS the user implies business activity or the goal is "Business Class Travel" / High Value.
+               - **REALISM**: If the user has low spending or no financial details, assume "Average Consumer" (don't assume they can spend $5k/month for a bonus).
+
             OUTPUT RULES:
             - **Google Search**: Verify offers.
             - **Milestones**: 

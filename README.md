@@ -124,10 +124,7 @@ The system follows a **Client-Server** architecture with an **Agentic Loop**.
     - Open `ios/Benefits_App/Benefits_App/Services/APIService.swift`.
     - Modify the `baseURL` variable to point to your local backend for testing:
       ```swift
-      // For Simulator
       static let baseURL = "http://127.0.0.1:8000" 
-      // For Physical Device (same Wi-Fi)
-      // static let baseURL = "http://192.168.1.5:8000"
       ```
 
 4.  **Build & Run**:
