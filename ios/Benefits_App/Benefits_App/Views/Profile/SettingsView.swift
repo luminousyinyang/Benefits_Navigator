@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
@@ -111,26 +112,8 @@ struct SettingsView: View {
                             CustomTextEditor(text: $financialDetails, placeholder: "I have elite status with Chase...")
                         }
                         
-                        // MARK: - Debug
-                        /*
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("Debug Tools")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.white)
-                            
-                            Button(action: {
-                                // simulatePriceProtection()
-                            }) {
-                                Text("Simulate Price Protection")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .padding()
-                                    .frame(maxWidth: .infinity)
-                                    .background(Color.purple.opacity(0.3))
-                                    .cornerRadius(12)
-                            }
-                        }
-                        */
+
+                        
                         
                         Divider().background(Color.gray.opacity(0.3))
                         

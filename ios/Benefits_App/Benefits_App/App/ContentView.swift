@@ -12,6 +12,7 @@ struct ContentView: View {
     struct RecommendationRequest: Identifiable {
         let id = UUID()
         let storeName: String
+        let prioritizeCategory: String?
     }
     
     @State private var shoppingAlert: ShoppingAlert?
@@ -46,11 +47,11 @@ struct ContentView: View {
         .fullScreenCover(item: $shoppingAlert) { alert in
             ShoppingConfirmationView(
                 storeName: alert.storeName,
-                onConfirm: {
+                onConfirm: { category in
                     self.shoppingAlert = nil
                     // Delay slightly to allow dismiss, then present recommendation
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                        self.recommendationRequest = RecommendationRequest(storeName: alert.storeName)
+                        self.recommendationRequest = RecommendationRequest(storeName: alert.storeName, prioritizeCategory: category)
                     }
                 },
                 onDeny: {
@@ -59,7 +60,7 @@ struct ContentView: View {
             )
         }
         .fullScreenCover(item: $recommendationRequest) { request in
-             RecommendationView(storeName: request.storeName, prioritizeCategory: nil)
+             RecommendationView(storeName: request.storeName, prioritizeCategory: request.prioritizeCategory)
         }
     }
 }
