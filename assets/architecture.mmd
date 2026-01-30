@@ -3,9 +3,9 @@ graph TD
     iOS -->|HTTPS/REST| API["Backend API (FastAPI)"]
     
     subgraph "Backend Core (Python)"
-        API --> Auth["Auth Service"]
+        API --> Auth["Auth & Wallet Service"]
         API --> AgentRouter["Agent Router"]
-        API --> ActionRouter["Action Center"]
+        API --> ActionRouter["Card Benefits Engine"]
         
         AgentRouter -->|Background Task| Marathon["Marathon Agent Service"]
         ActionRouter -->|Trigger| Gemini["Gemini Service"]
@@ -16,7 +16,7 @@ graph TD
         Marathon -->|Read/Write| Firestore[("Firebase Firestore")]
         Auth -->|Read/Write| Firestore
     end
-    
+
     subgraph "External"
         GeminiAI -->|Grounding| GoogleSearch["Google Search"]
     end
