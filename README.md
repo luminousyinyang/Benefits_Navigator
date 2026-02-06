@@ -30,6 +30,7 @@ Built with **SwiftUI** for a premium iOS experience and **FastAPI** + **Google G
     - 📱 Cell Phone Protection
     - 🔧 Extended Warranty
     - 📉 Price Protection
+    - ↩️ Guaranteed Returns
 
 ---
 
