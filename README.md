@@ -22,8 +22,14 @@ Built with **SwiftUI** for a premium iOS experience and **FastAPI** + **Google G
 - **Active Tracking**: Tracks your sign-on bonuses and spending goals in real-time.
 
 ### 🛡️ Action Center
-- **Price Protection**: Monitors price drops for recent purchases.
-- **Warranty Manager**: Keeps track of extended warranty coverage.
+- **Autonomous Price Watchdog**: A daily background agent that monitors your recent purchases. It uses **Gemini 3 Flash + Google Search** to patrol the web for price drops. If a lower price is found, it alerts you immediately so you can claim the difference via Price Protection.
+- **Benefit Claims AI**: Need to file a claim for "Lost Luggage" or "Car Rental Damage"? The Agent generates a **step-by-step, grounded instruction guide** tailored to your specific credit card's policy, telling you exactly who to call and what documents to submit.
+- **Supported Categories**:
+    - 🚗 Car Rental Insurance
+    - ✈️ Airport Benefits (Lounge/Global Entry)
+    - 📱 Cell Phone Protection
+    - 🔧 Extended Warranty
+    - 📉 Price Protection
 
 ---
 
